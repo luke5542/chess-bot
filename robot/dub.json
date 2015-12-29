@@ -1,0 +1,45 @@
+{
+	"name": "robot",
+	"description": "An AI robot designed to play 7,7 Kalah.",
+	"copyright": "Copyright © 2014, COMP34120 Team 3D",
+	"authors": ["Devin Ridgway", "Dan Underwood", "Diego Abel"],
+
+    "configurations":[
+        {
+            "name":"debug",
+            "mainSourceFile":"source/app.d",
+            "platforms": ["linux"],
+            "targetType":"executable",
+            "buildOptions":["debugMode"],
+            "dependencies":
+            {
+            },
+            "targetPath": "bin\\debug\\",
+            "workingDirectory":"bin\\debug\\"
+        },
+        {
+            "name":"release",
+            "mainSourceFile":"source/app.d",
+            "platforms": ["linux"],
+            "targetType":"executable",
+            "buildOptions":["releaseMode", "inline", "optimize"],
+            "dependencies":
+            {
+            },
+            "targetPath": "bin\\release\\",
+            "workingDirectory":"bin\\release\\"
+        },
+        {
+            "name":"unittest",
+            "mainSourceFile":"source/app.d",
+            "platforms": ["linux"],
+            "targetType":"executable",
+            "buildOptions":["debugMode"],
+            "dependencies":
+            {
+            },
+            "targetPath": "bin\\unittest\\",
+            "workingDirectory":"bin\\unittest\\"
+        }
+    ],
+}
