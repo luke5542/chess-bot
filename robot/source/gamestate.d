@@ -172,10 +172,41 @@ struct GameState
     //Performs a move given a move and a state
     GameState performMove(Move move)
     {
-        //TODO
+        GameState newState;
         
-        setIsInCheck(Color.WHITE);
-        setIsInCheck(Color.BLACK);
+        if(move.piece.type != PieceType.PAWN
+            && board[move.dest_column][move.dest_row].isEmpty)
+        {
+            newState.movesSinceCaptureOrPawn = movesSinceCaptureOrPawn + 1;
+        }
+        else
+        {
+            newState.movesSinceCaptureOrPawn = 0;
+        }
+        
+        newState.board = board.dup;
+        newState.board[move.start_column][move.start_row].isEmpty = true;
+        newState.board[move.dest_column][move.dest_row].isEmpty = false;
+        newState.board[move.dest_column][move.dest_row].piece = newState.board[move.start_column][move.start_row].piece;
+        
+        
+        newState.side = side.opposite;
+        
+        newState.setIsInCheck(Color.WHITE);
+        newState.setIsInCheck(Color.BLACK);
+        
+        if(newState.movesSinceCaptureOrPawn >= 50)
+        {
+            newState.currentState = PlayState.TIE;
+        }
+        else if(newState.getValidMoves(newState.side).length == 0)
+        {
+            newState.currentState = (newState.side == Color.WHITE ? PlayState.BLACK_WIN : PlayState.WHITE_WIN);
+        }
+        else
+        {
+            newState.currentState = PlayState.PLAYING;
+        }
     }
     
     void setIsInCheck(Color side)
@@ -184,7 +215,8 @@ struct GameState
         //of them can attack the opposing king. If so, set 
         //that king to being in check.
         Color opposite = side.opposite();
-        foreach(move; getValidMoves(side))
+        isKingInCheck[opposite] = false;
+        foreach(move; getMoves(side))
         {
             if(!board[move.dest_column][move.dest_row].isEmpty
                 && board[move.dest_column][move.dest_row].piece.color == opposite
@@ -192,15 +224,16 @@ struct GameState
             {
                 //King is in check...
                 isKingInCheck[opposite] = true;
+                hasKingBeenChecked[opposite] = true;
                 return;
             }
         }
     }
     
     //Returns a dynamic array of Move structs that are valid from the current state
-    Move[] getValidMoves(Color side)
+    Move[] getMoves(Color side)
     {
-        Move[] validMoves;
+        Move[] possibleMoves;
         foreach(c, tiles; board)
         {
             foreach(r, tile; tiles)
@@ -213,28 +246,33 @@ struct GameState
                 final switch(tile.piece.type)
                 {
                     case QUEEN:
-                        validMoves ~= getQueenMoves(tile, c, r);
+                        possibleMoves ~= getQueenMoves(tile, c, r);
                         break;
                     case KING:
-                        validMoves ~= getKingMoves(tile, c, r);
+                        possibleMoves ~= getKingMoves(tile, c, r);
                         break;
                     case BISHOP:
-                        validMoves ~= getBishopMoves(tile, c, r);
+                        possibleMoves ~= getBishopMoves(tile, c, r);
                         break;
                     case KNIGHT:
-                        validMoves ~= getKnightMoves(tile, c, r);
+                        possibleMoves ~= getKnightMoves(tile, c, r);
                         break;
                     case ROOK:
-                        validMoves ~= getRookMoves(tile, c, r);
+                        possibleMoves ~= getRookMoves(tile, c, r);
                         break;
                     case PAWN:
-                        validMoves ~= getPawnMoves(tile, c, r);
+                        possibleMoves ~= getPawnMoves(tile, c, r);
                         break;
                 }
             }
         }
         
-        return checkIfIsInCheck(side, validMoves);
+        return possibleMoves;
+    }
+    
+    Move[] getValidMoves(Color side)
+    {
+        return checkIfIsInCheck(side, getMoves(side));
     }
     
     Move[] getQueenMoves(Tile tile, byte c, byte r)
