@@ -40,6 +40,12 @@ struct Move
     Row     dest_row;   //To where
     Column  dest_column;
     
+    bool isCastle = false; //used if we need to effectively move two pieces
+    Row     start_row_rook;  //From where
+    Column  start_column_rook;
+    Row     dest_row_rook;   //To where
+    Column  dest_column_rook;
+    
     @disable this();
 
     this(Color s, Piece p, Row sr, Column sc, Row dr, Column dc) 
@@ -50,6 +56,23 @@ struct Move
         dest_row = dr;
         start_column = sc;
         dest_column = dc;
+    }
+    
+    this(Color s, Piece p, Row sr, Column sc, Row dr, Column dc,
+            Row srr, Column scr, Row drr, Column dcr) 
+    {
+        side = s;
+        piece = p;
+        start_row = sr;
+        dest_row = dr;
+        start_column = sc;
+        dest_column = dc;
+        
+        isCastle = true;
+        start_row_rook = srr;
+        dest_row_rook = drr;
+        start_column_rook = scr;
+        dest_column_rook = dcr;
     }
 
     string toString() 
@@ -98,6 +121,8 @@ struct GameState
         {
             board[t][1].piece = Piece(PieceType.PAWN, Color.WHITE, false);
             board[t][6].piece = Piece(PieceType.PAWN, Color.WHITE, false);
+            board[t][1].isEmpty = false;
+            board[t][6].isEmpty = false;
         }
         
         //Rooks
@@ -105,38 +130,71 @@ struct GameState
         board[7][0].piece = Piece(PieceType.ROOK, Color.WHITE, false);
         board[0][7].piece = Piece(PieceType.ROOK, Color.BLACK, false);
         board[7][7].piece = Piece(PieceType.ROOK, Color.BLACK, false);
+        board[0][0].isEmpty = false;
+        board[7][0].isEmpty = false;
+        board[0][7].isEmpty = false;
+        board[7][7].isEmpty = false;
         
         //Knights
         board[1][0].piece = Piece(PieceType.KNIGHT, Color.WHITE, false);
         board[6][0].piece = Piece(PieceType.KNIGHT, Color.WHITE, false);
         board[1][7].piece = Piece(PieceType.KNIGHT, Color.BLACK, false);
         board[6][7].piece = Piece(PieceType.KNIGHT, Color.BLACK, false);
+        board[1][0].isEmpty = false;
+        board[6][0].isEmpty = false;
+        board[1][7].isEmpty = false;
+        board[6][7].isEmpty = false;
         
         //Bishops
         board[2][0].piece = Piece(PieceType.BISHOP, Color.WHITE, false);
         board[5][0].piece = Piece(PieceType.BISHOP, Color.WHITE, false);
         board[2][7].piece = Piece(PieceType.BISHOP, Color.BLACK, false);
         board[5][7].piece = Piece(PieceType.BISHOP, Color.BLACK, false);
+        board[2][0].isEmpty = false;
+        board[5][0].isEmpty = false;
+        board[2][7].isEmpty = false;
+        board[5][7].isEmpty = false;
         
         //Queens
         board[3][0].piece = Piece(PieceType.QUEEN, Color.WHITE, false);
         board[3][7].piece = Piece(PieceType.QUEEN, Color.BLACK, false);
+        board[3][0].isEmpty = false;
+        board[3][7].isEmpty = false;
         
         //Kings
         board[4][0].piece = Piece(PieceType.KING, Color.WHITE, false);
         board[4][7].piece = Piece(PieceType.KING, Color.BLACK, false);
+        board[4][0].isEmpty = false;
+        board[4][7].isEmpty = false;
         
-    }
-
-    Tile getTile(Column c, Row r)
-    {
-        return board[c][r];
     }
 
     //Performs a move given a move and a state
     GameState performMove(Move move)
     {
         //TODO
+        
+        setIsInCheck(Color.WHITE);
+        setIsInCheck(Color.BLACK);
+    }
+    
+    void setIsInCheck(Color side)
+    {
+        //Get the possible moves for this side and see if any of
+        //of them can attack the opposing king. If so, set 
+        //that king to being in check.
+        Color opposite = side.opposite();
+        foreach(move; getValidMoves(side))
+        {
+            if(!board[move.dest_column][move.dest_row].isEmpty
+                && board[move.dest_column][move.dest_row].piece.color == opposite
+                && board[move.dest_column][move.dest_row].piece.type == PieceType.KING)
+            {
+                //King is in check...
+                isKingInCheck[opposite] = true;
+                return;
+            }
+        }
     }
     
     //Returns a dynamic array of Move structs that are valid from the current state
@@ -198,15 +256,44 @@ struct GameState
             }
         }
         
+        //TODO prevent castling through check...
         if(!tile.piece.hasMoved && !hasKingBeenChecked[tile.piece.color])
         {
             if(tile.piece.color == Color.WHITE)
             {
-                
+                if(board[0][0].piece.type == PieceType.ROOK
+                    && !board[0][0].piece.hasMoved
+                    && board[1][0].isEmpty
+                    && board[2][0].isEmpty
+                    && board[3][0].isEmpty)
+                {
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 2, 0, 0, 0, 3);
+                }
+                if(board[7][0].piece.type == PieceType.ROOK
+                    && !board[7][0].piece.hasMoved
+                    && board[6][0].isEmpty
+                    && board[5][0].isEmpty)
+                {
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 6, 0, 7, 0, 5);
+                }
             }
             else
             {
-                
+                if(board[0][7].piece.type == PieceType.ROOK
+                    && !board[0][7].piece.hasMoved
+                    && board[1][7].isEmpty
+                    && board[2][7].isEmpty
+                    && board[3][7].isEmpty)
+                {
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 2, 7, 0, 7, 3);
+                }
+                if(board[7][7].piece.type == PieceType.ROOK
+                    && !board[7][7].piece.hasMoved
+                    && board[6][7].isEmpty
+                    && board[5][7].isEmpty)
+                {
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 6, 7, 7, 7, 5);
+                }
             }
         }
         
@@ -404,9 +491,18 @@ struct GameState
         return board[c][r].isEmpty || board[c][r].piece.color != side;
     }
     
-    Move[] checkIfIsInCheck(Colod side, Move[] moves)
+    Move[] checkIfIsInCheck(Color side, Move[] moves)
     {
-        //TODO
+        Move[] verifiedMoves;
+        //Need to make sure moves leave the player without check
+        foreach(move; moves)
+        {
+            auto newState = performMove(move);
+            if(!newState.isKingInCheck[side])
+            {
+                verifiedMoves ~= move;
+            }
+        }
     }
     
     Move[] getMyValidMoves()
