@@ -548,4 +548,10 @@ struct GameState
       return getValidMoves(this.side);
     }
     
+    bool isWinner(Color sideToCheck)
+    {
+        return (currentState == WHITE_WIN && sideToCheck == Color.WHITE)
+                || (currentState == BLACK_WIN && sideToCheck == Color.BLACK)
+    }
+    
 }

@@ -25,407 +25,292 @@ struct NoMoves {}
 //available statistics on the tree itself.
 struct PrintTreeStats {}
 
-// Run the Monte Carlo program in order to play a mancala game.
-// Number of seeds in the game
-immutable MAX_SEEDS = 98;
-
 class MCTreeNode
 {
-  //The children moves from this node
-  MCTreeNode[7] m_children;
-  
-  MCTreeNode parent;
+    //The children moves from this node
+    MCTreeNode[] m_children;
 
-  bool m_isLeafNode = true;
+    MCTreeNode parent;
 
-  //The current state of the game at this point
-  GameState m_currentState;
+    bool m_isLeafNode = true;
 
-  //The move that gets you to this node.
-  Move m_moveToHere;
+    //The current state of the game at this point
+    GameState m_currentState;
 
-  //To say whether or not the move to get here is a valid move or not.
-  bool m_isValid;
-  
-  // Keep if it is my turn or the opponents one.
-  bool myTurn;
-  
-  // The three heuristics.
-  int distanceToOpponent;
-  int meToWin;
-  int opponentToWin;
-  
-  // NEW heuristics
-  real childrenAverageUtility = 0;
-  real childrenUtility = 0;
-  int numberOfExpandedChildren = 0;
+    //The move that gets you to this node.
+    Move m_moveToHere;
 
-  real newUtilityValue = 0;
+    // Keep if it is my turn or the opponents one.
+    bool myTurn;
 
-  real nodeValue = 0;
-  
-  // Variables from the selection formula.
-  int w = 0; // Number of wins after this move.
-  int n = 1; // Number of simulations after this move.
-  real c = SQRT2; // Exploration parameter  
-  
-  real obtainUtility()
-  {
-    return newUtilityValue;//(distanceToOpponent - meToWin + opponentToWin);
-  } // obtainUtility
-  
-  bool isLeafNode()
-  {
-    return m_isLeafNode;
-  }
-  
-  real obtainWinningScore()
-  {
-    real score = /*sqrt(cast(real) (this.obtainUtility()^^2 + */this.childrenAverageUtility;//^^2;));
-    return score;//obtainUtility() < 0 ? -score : score;
-  }
+    real nodeValue = 0;
 
-  real getSearchParameter(real parentN)
-  {
-    return (c * sqrt(log(parentN) / n));
-  }
+    // Variables from the selection formula.
+    real w = 0; // Number of wins after this move.
+    real n = 1; // Number of simulations after this move.
+    real c = SQRT2; // Exploration parameter  
 
-} // MCTreeNode
+    real obtainUtility()
+    {
+        return w / n;
+    }
+
+    bool isLeafNode()
+    {
+        return m_isLeafNode;
+    }
+
+    real getSearchParameter(real parentN)
+    {
+        return (c * sqrt(log(parentN) / n));
+    }
+
+}
+
+
+// Create a tree having the node with the current state as root.
+MCTreeNode root = null;
+bool canSearchTree = false;
 
 // Run till interrupted.
 void execute(GameState state)
 {
-  debug stderr.writeln("Running Monte Carlo Tree Search...");
+    debug writeln("Running Monte Carlo Tree Search...");
 
-  try
-  {
-    bool done = false;
+    try
+    {
+        bool done = false;
+        do {
+            if(root !is null && canSearchTree)
+                expandTree();
+            else
+                Thread.sleep(msecs(50));
 
-    // Create a tree having the node with the current state as root.
-    MCTreeNode root = new MCTreeNode();
-    
-    // Set it up.
-    root.m_currentState = state;
-    root.myTurn = true;
+            //Check for server messages...
+            done = checkMessages();
 
-    // Update the heuristics
-    //updateHeuristics(root);
-    root.newUtilityValue = calculateUtility(state, state.side);
-    
-    MCTreeNode currentNode;
+            debug writeln("Time to loop...", '\n');
+        } while(!done);
 
-    do {       
-      MCTreeNode newNode;
-      
-      // Selection
-      debug stderr.writeln("Selecting...");
-      currentNode = root;
-      
-      while(!currentNode.isLeafNode())
-      {
-        
+        debug writeln("MCT Thread is ending from lack of work.");
+  
+    }
+    catch(Exception e)
+    {
+        writeln(e);
+    }
+} // execute
+
+void expandTree()
+{
+    MCTreeNode newNode, currentNode;
+
+    // Selection
+    debug writeln("Selecting...");
+    currentNode = root;
+
+    while(!currentNode.isLeafNode())
+    {
+
         newNode = null;
         
         // Look at all the children and get the most promising one.
         foreach(child; currentNode.m_children)
-        { 
-          if (child !is null)
-          {
-            //child.nodeValue = child.w / child.n + child.c * sqrt(log(currentNode.n) / child.n);
-            child.nodeValue = child.obtainUtility() + child.getSearchParameter(currentNode.n);
-            //stderr.writeln("Node Val: ", child.nodeValue, ", Average Utility: ", child.childrenAverageUtility);
-            
-            if (newNode is null || (currentNode.myTurn && child.nodeValue > newNode.nodeValue)
-                                || (!currentNode.myTurn && child.nodeValue < newNode.nodeValue))
+        {
+            if (child !is null)
             {
-              newNode = child;
-            } // if this child looks more promising          
-          } // if child not null
+                child.nodeValue = child.obtainUtility() + child.getSearchParameter(currentNode.n);
+                
+                if (newNode is null || (currentNode.myTurn && child.nodeValue > newNode.nodeValue)
+                                || (!currentNode.myTurn && child.nodeValue < newNode.nodeValue))
+                {
+                    newNode = child;
+                } // if this child looks more promising
+            } // if child not null
         } // for each child
-        
-        currentNode = newNode;
-        //stderr.writeln("Found new Node. isLeaf: ", currentNode.isLeafNode());
-      } // while
-        
-      debug stderr.writeln("Found leaf node...");
 
-      // Expansion
-      // Unless current node ends the game
-      // Create all the children and choose the most promising one.
-      Move[] moves = currentNode.m_currentState.getMyValidMoves();
-      if(!isEndGame(currentNode.m_currentState) && moves.length > 0)
-      {
-        debug stderr.writeln("Not end game");
-        
+        currentNode = newNode;
+    } // while
+
+    debug writeln("Found leaf node...");
+
+    // Expansion
+    // Unless current node ends the game
+    // Create all the children and choose the most promising one.
+    Move[] moves = currentNode.m_currentState.getMyValidMoves();
+    if(!isEndGame(currentNode.m_currentState) && moves.length > 0)
+    {
+        debug writeln("Not end game");
+
         MCTreeNode mostPromising;
         //real promisingValue = 0;
 
         //Make sure currentNode is no longer a leaf.
         currentNode.m_isLeafNode = false;
-        
+
         real prevUtility = currentNode.childrenUtility;
         foreach(index, move; moves)
         {
-          MCTreeNode newChild = new MCTreeNode();
-          newChild.m_currentState = currentNode.m_currentState.performMove(move);
-          newChild.m_moveToHere = move;
-          newChild.parent = currentNode;
-          newChild.myTurn = (newChild.m_currentState.side == currentNode.m_currentState.side) 
+            MCTreeNode newChild = new MCTreeNode();
+            newChild.m_currentState = currentNode.m_currentState.performMove(move);
+            newChild.m_moveToHere = move;
+            newChild.parent = currentNode;
+            newChild.myTurn = (newChild.m_currentState.side == currentNode.m_currentState.side) 
                             ? currentNode.myTurn : !currentNode.myTurn;
-          newChild.c = newChild.myTurn ? MY_SEARCH_RATE : OPP_SEARCH_RATE;
-          
-          //updateHeuristics(newChild);
-          newChild.newUtilityValue = calculateUtility(newChild.m_currentState, server.playerSide);
-          //stderr.writeln("Child New Utility: ", newChild.newUtilityValue);
+            //newChild.c = newChild.myTurn ? MY_SEARCH_RATE : OPP_SEARCH_RATE;
 
-          currentNode.m_children[index] = newChild;
+            currentNode.m_children[index] = newChild;
 
-          if (mostPromising is null || newChild.obtainUtility() >= mostPromising.obtainUtility())
-          {
-            mostPromising = newChild;
-            //promisingValue = newChild.obtainUtility();
-          }
-          
-          // Update NEW heuristics
-          currentNode.numberOfExpandedChildren++;
-          //Negatively weight bad children...
-          currentNode.childrenUtility += newChild.obtainUtility();//newChild.myTurn ? newChild.obtainUtility() : -newChild.obtainUtility();        
-        } // for each child
-      
-        if(currentNode.numberOfExpandedChildren == 0)
-        {
-          currentNode.childrenAverageUtility = 0;
+            if(mostPromising is null || newChild.obtainUtility() >= mostPromising.obtainUtility())
+            {
+                mostPromising = newChild;
+            }
         }
-        else
-        {
-          currentNode.childrenAverageUtility = currentNode.childrenUtility 
-                                             / currentNode.numberOfExpandedChildren;
-        }
-      
-	      // Update for all the nodes above this one.
-	      updateAveragedUtility(currentNode.parent, prevUtility,
-	      											currentNode.childrenAverageUtility);  
 
-        currentNode = mostPromising;    
-      } // perform expansion
+        currentNode = mostPromising;
+    } // perform expansion
 
-      // Simulation and Backpropagation
-      currentNode.n += 1;
-
-      debug stderr.writeln("Simulating...");
-      bool wonSimulation;
-      if(currentNode.myTurn)
-      {
+    debug writeln("Simulating...");
+    bool wonSimulation;
+    if(currentNode.myTurn)
+    {
         wonSimulation = simulateGame(currentNode.m_currentState, currentNode.m_currentState.side);
-      }
-      else
-      {
-        if(currentNode.m_currentState.side == Side.NORTH)
-        {
-          wonSimulation = simulateGame(currentNode.m_currentState, Side.SOUTH);
-        }
-        else
-        {
-          wonSimulation = simulateGame(currentNode.m_currentState, Side.NORTH);
-        }
-      }
+    }
+    else
+    {
+        wonSimulation = simulateGame(currentNode.m_currentState,
+                                        currentNode.m_currentState.side.opposite);
+    }
 
-      debug stderr.writeln("Back propagating...");
-      if(wonSimulation)
-      {
-          currentNode.w +=1;
-          backpropagate(true, currentNode.parent);
-      }
-      else
-          backpropagate(false, currentNode.parent);
-      
-      // Update tree
+    debug writeln("Back propagating...");
+    backpropagate(wonSimulation, currentNode.parent);
+}
 
-      //Check for server messages...
-      try
-      {
-        debug stderr.writeln("Checking for messages...");
+bool checkMessages()
+{
+    try
+    {
+        debug writeln("Checking for messages...");
         receiveTimeout( 1.usecs,
-                        (Exit message) {
-                          debug stderr.writeln("Exiting");
-                          done = true;
-                        },
-                        (GetBestMove message) {
-                          debug stderr.writeln("Getting best move...");
-                          //Send message to parent with the best move found so far
-                          if(!root.myTurn)
-                          {
-                            debug stderr.writeln("It's not my turn, something went wrong ya doof...");
-                          }
-                          Move bestMove;
-                          real bestVal = 0;
-                          bool hasBestMove = false;
-                          foreach(node; root.m_children)
-                          {
-                            if(node !is null && (!hasBestMove || node.obtainWinningScore() > bestVal))
-                            {
-                              bestMove = node.m_moveToHere;
-                              bestVal = node.obtainWinningScore();
-                              hasBestMove = true;
-                            }
-                          }
-                          if(hasBestMove)
-                          {
-                            ownerTid.send(bestMove);
-                          }
-                          else
-                          {
-                            ownerTid.send(NoMoves());
-                          }
-                        },
-                        (Move moveMade) {
-                          //update the tree with the new data
-                          debug stderr.writeln("Pruning tree with move...");
+                (Exit message) {
+                    debug writeln("Exiting");
+                    return true;
+                },
+                (GetBestMove message) {
+                    debug writeln("Getting best move...");
+                    //Send message to parent with the best move found so far
+                    if(!root.myTurn)
+                    {
+                        debug writeln("It's not my turn, something went wrong ya doof...");
+                    }
+                    Move bestMove;
+                    real bestVal = 0;
+                    bool hasBestMove = false;
+                    foreach(node; root.m_children)
+                    {
+                        if(node !is null && (!hasBestMove || node.obtainUtility() > bestVal))
+                        {
+                            bestMove = node.m_moveToHere;
+                            bestVal = node.obtainUtility();
+                            hasBestMove = true;
+                        }
+                    }
+                    if(hasBestMove)
+                    {
+                        ownerTid.send(bestMove);
+                    }
+                    else
+                    {
+                        ownerTid.send(NoMoves());
+                    }
+                    canSearchTree = false;
+                },
+                (Move moveMade) {
+                    //update the tree with the new data
+                    debug writeln("Pruning tree with move...");
 
-                          //Find node with given move...
-                          foreach(node; root.m_children)
-                          {
-                            if(node !is null && node.m_moveToHere == moveMade)
-                            {
-                              root = node;
-                              root.parent = null;
-                              break;
-                            }
-                          }
-                        },
-                        (GameState newState) {
-                          //update the tree with the new data
-                          debug stderr.writeln("Pruning tree with GameState...");
+                    //Find node with given move...
+                    foreach(node; root.m_children)
+                    {
+                        if(node !is null && node.m_moveToHere == moveMade)
+                        {
+                            root = node;
+                            root.parent = null;
+                            break;
+                        }
+                    }
+                    canSearchTree = true;
+                },
+                (GameState newState, bool myTurn) {
+                    root = new MCTreeNode();
 
-                          bool nodeFound = false;
-                          //Find node with given move...
-                          foreach(node; root.m_children)
-                          {
-                            if(node !is null && node.m_currentState == newState)
-                            {
-                              root = node;
-                              root.parent = null;
-                              nodeFound = true;
-                              break;
-                            }
-                          }
-
-                          if(!nodeFound)
-                          {
-                            root = new MCTreeNode();
-    
-                            // Set it up.
-                            root.m_currentState = newState;
-                            root.myTurn = newState.side == server.playerSide;
-                            //updateHeuristics(root);
-                            root.newUtilityValue = calculateUtility(newState, server.playerSide);
-                          }
-                        },
-                        (PrintTreeStats message) {
-                          //Print out various statistics about this tree.
-                          printTreeStats(root);
-                        });
-      }
-      catch(OwnerTerminated exc)
-      {
+                    // Set it up.
+                    root.m_currentState = newState;
+                    root.myTurn = myTurn;
+                    canSearchTree = true;
+                },
+                (PrintTreeStats message) {
+                    //Print out various statistics about this tree.
+                    printTreeStats(root);
+                });
+    }
+    catch(OwnerTerminated exc)
+    {
         //Do same as the Exit message
-        debug stderr.writeln("Exiting due to parental termination.");
-        done = true;
-      }
-
-
-      debug stderr.writeln("Time to loop...", '\n');
-    } while(!done);
-
-    debug stderr.writeln("MCT Thread is ending from lack of work.");
-  
-  }
-  catch(Exception e)
-  {
-    stderr.writeln(e);
-  }
-
-} // execute
+        debug writeln("Exiting due to parental termination.");
+        return true;
+    }
+    
+    return false;
+}
 
 // Perform the simulation part of the Monte Carlo algortihm by executing
 // random moves from the current game state.
 bool simulateGame(GameState state, Side mySide)
 {
-  Move[] moves = state.getMyValidMoves();
-  int randomIndex;
-  
-  while(state.northPit <= MAX_SEEDS/2 && state.southPit <= MAX_SEEDS/2 && moves.length > 0)
-  {
-    randomIndex = to!int(uniform(0, moves.length));
-  
-    // Randomly perform one
-    state = state.performMove(moves[randomIndex]);
-    
-    // Get the possible moves
-    moves = state.getMyValidMoves();
-  } // while there are still possible moves.
-  
-  // Check who has won.
-  if ((mySide == Side.NORTH && state.northPit > state.southPit)
-      || (mySide == Side.SOUTH && state.southPit > state.northPit))
-      return true;
-  else
-      return false; // We have lost :(    
-      
-  
-} // simulateGame
+    Move[] moves = state.getMyValidMoves();
+    int randomIndex;
 
-void updateHeuristics(MCTreeNode node)
-{
-  int seedsInMyPit;
-  int seedsInOpPit;
-  
-  if (node.myTurn && node.m_currentState.side == Side.NORTH 
-      || !node.myTurn && node.m_currentState.side == Side.SOUTH)
-  {
-    seedsInMyPit = node.m_currentState.northPit;
-    seedsInOpPit = node.m_currentState.southPit;
-  }
-  else
-  {
-    seedsInMyPit = node.m_currentState.southPit;
-    seedsInOpPit = node.m_currentState.northPit;
-  }
-  
-  node.distanceToOpponent = seedsInMyPit - seedsInOpPit;
-  node.meToWin = (MAX_SEEDS / 2 + 1) - seedsInMyPit;
-  node.opponentToWin = (MAX_SEEDS / 2 + 1) - seedsInOpPit;
-} // updateHeuristics
+    while(state.currentState == PLAYING)
+    {
+        randomIndex = to!int(uniform(0, moves.length));
+
+        // Randomly perform one
+        state = state.performMove(moves[randomIndex]);
+
+        // Get the possible moves
+        moves = state.getMyValidMoves();
+    } // while there are still possible moves.
+
+    // Check who has won.
+    return state.isWinner(mySide);
+
+} // simulateGame
 
 void backpropagate(bool weWon, MCTreeNode currentNode)
 {
-  // While we havent arrived to the root.
-  if (currentNode !is null)
-  {
-    if(weWon)
-      currentNode.w +=1;
-      
-    currentNode.n += 1;
-    
-    backpropagate(weWon, currentNode.parent);  
-    
-  }
-}
+    // While we havent arrived to the root.
+    if (currentNode !is null)
+    {
+        if(weWon)
+            currentNode.w +=1;
+          
+        currentNode.n += 1;
 
-bool isEndGame(GameState state)
-{
-   return state.getMyValidMoves().length == 0; //(state.northPit >= (MAX_SEEDS / 2 + 1) || state.southPit >= (MAX_SEEDS / 2 + 1));
+        backpropagate(weWon, currentNode.parent);  
+
+    }
 }
 
 void printTreeStats(MCTreeNode root)
 {
   //TODO print out the various tree statistics...
-  stderr.writeln("Root children: ");
+  writeln("Root children: ");
 
   foreach(child; root.m_children)
   {
     if(child !is null)
-      stderr.writeln("Node Value: ", child.nodeValue, ", Wins past this point: ", 
+      writeln("Node Value: ", child.nodeValue, ", Wins past this point: ", 
       								child.w, ", Simulations: ", child.n, ", Utility: ", child.obtainUtility(),
                       ", Average Utility below: ", child.childrenAverageUtility,
                       ", Total Utility below: ", child.childrenUtility,
@@ -433,10 +318,10 @@ void printTreeStats(MCTreeNode root)
   }
 
   int numNodes = getNumNodes(root);
-  stderr.writeln("Number of Nodes: ", numNodes);
-  //stderr.writeln("Seeds North: ", root.m_currentState.northPit, ", Seeds South: ", 
+  writeln("Number of Nodes: ", numNodes);
+  //writeln("Seeds North: ", root.m_currentState.northPit, ", Seeds South: ", 
   									//root.m_currentState.southPit);
-  stderr.writeln();
+  writeln();
 }
 
 int getNumNodes(MCTreeNode root)
@@ -462,10 +347,10 @@ int getNumNodes(MCTreeNode root)
 }
 
 // NEW method
-void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)//, int numChildren, int oldChildren)
+void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)
 {
-		if(node !is null)
-		{
+	if(node !is null)
+	{
         real prevUtility = node.childrenAverageUtility;
         
         node.childrenUtility -= oldValue;
@@ -473,5 +358,5 @@ void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)//, int
         node.childrenAverageUtility = node.childrenUtility / node.numberOfExpandedChildren;
         
         updateAveragedUtility(node.parent, prevUtility, node.childrenAverageUtility);
-		}
+	}
 }

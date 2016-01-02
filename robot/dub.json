@@ -8,38 +8,53 @@
         {
             "name":"debug",
             "mainSourceFile":"source/app.d",
-            "platforms": ["linux"],
+            "platforms": ["linux", "windows", "osx"],
             "targetType":"executable",
             "buildOptions":["debugMode"],
             "dependencies":
             {
+                "dsfml": "~master",
             },
-            "targetPath": "bin\\debug\\",
-            "workingDirectory":"bin\\debug\\"
-        },
-        {
-            "name":"release",
-            "mainSourceFile":"source/app.d",
-            "platforms": ["linux"],
-            "targetType":"executable",
-            "buildOptions":["releaseMode", "inline", "optimize"],
-            "dependencies":
-            {
-            },
-            "targetPath": "bin\\release\\",
-            "workingDirectory":"bin\\release\\"
-        },
-        {
-            "name":"unittest",
-            "mainSourceFile":"source/app.d",
-            "platforms": ["linux"],
-            "targetType":"executable",
-            "buildOptions":["debugMode"],
-            "dependencies":
-            {
-            },
-            "targetPath": "bin\\unittest\\",
-            "workingDirectory":"bin\\unittest\\"
+			"postBuildCommands-osx":["mkdir -p bin/MacOS/assets",
+                            "cp -rf ./assets/* bin/MacOS/assets/",
+                            "mkdir -p bin/Frameworks",
+                            "cp -rf Frameworks/* bin/Frameworks/",
+                            "cp -rf libs/*.dylib bin/Frameworks/",
+                            "sudo ./refChangeOsx bin"],
+			"copyFiles-linux":[ "libs/libdsfml-graphics.so.2",
+                                "libs/libdsfml-system.so.2.1",
+                                "libs/libdsfml-graphics.so.2.1",
+                                "libs/libdsfml-window.so",
+                                "libs/libdsfml-network.so",
+                                "libs/libdsfml-window.so.2",
+                                "libs/libdsfml-audio.so",
+                                "libs/libdsfml-network.so.2",
+                                "libs/libdsfml-window.so.2.1",
+                                "libs/libdsfml-audio.so.2",
+                                "libs/libdsfml-network.so.2.1",
+                                "libs/libdsfml-audio.so.2.1",
+                                "libs/libdsfml-system.so",
+                                "libs/libdsfml-graphics.so",
+                                "libs/libdsfml-system.so.2",],
+            "copyFiles-windows":[   "dlls/dsfml-audio-2.dll",
+                                    "dlls/dsfml-graphics-2.dll",
+                                    "dlls/dsfml-network-2.dll",
+                                    "dlls/dsfml-system-2.dll",
+                                    "dlls/dsfml-window-2.dll",
+                                    "dlls/libgcc_s_dw2-1.dll",
+                                    "dlls/libsndfile-1.dll",
+                                    "dlls/libstdc++-6.dll",
+                                    "dlls/libwinpthread-1.dll",
+                                    "dlls/openal32.dll"],
+            "postBuildCommands-linux":["mkdir -p bin/debug/assets",
+                    "cp -rf .assets/* bin/debug/assets/"],
+            "postBuildCommands-windows":["copy assets\\* bin\\debug\\assets\\"],
+            "targetPath-windows": "bin\\debug\\",
+            "workingDirectory-windows":"bin\\debug\\",
+			"targetPath-linux": "bin\\debug\\",
+            "workingDirectory-linux":"bin\\debug\\",
+			"targetPath-osx": "bin\\MacOS\\",
+            "workingDirectory-osx":"bin\\MacOS\\"
         }
     ],
 }

@@ -8,15 +8,11 @@ import core.stdc.stdlib;
 import core.time;
 import core.thread;
 
-import idlethread;
 import montecarlo;
 import gamestate;
-import server;
-import message;
-import mtdf;
-import negascout;
+import gui;
 
-bool isNoCPUDeath;
+enum MessageType {PLAY_GAME};
 
 void main(string[] args)
 {
@@ -148,5 +144,31 @@ void playGameWithServer()
 
         mctThread.send(latestState);
 
+    }
+}
+
+void playGameInGui()
+{
+    //auto botThread = spawnLinked(&execute, message.getNextState());
+    
+    Tid guiThread = spawnLinked(&runGui);
+    Tid botThread;
+    
+    bool isDone = false;
+    bool isPlayingGame = false;
+    GameState state;
+    while(!isDone)
+    {
+        receiveTimeout( 1.usecs,
+                        (MessageType message) {
+                            switch(message)
+                            {
+                                case PLAY_GAME:
+                                    isPlayingGame = true;
+                                    state.init();
+                                    botThread = spawnLinked(&runBot, state, );
+                                    break;
+                            }
+                        });
     }
 }
