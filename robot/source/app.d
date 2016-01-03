@@ -12,8 +12,6 @@ import montecarlo;
 import gamestate;
 import gui;
 
-enum MessageType {PLAY_GAME};
-
 void main(string[] args)
 {
     version(unittest)
@@ -22,11 +20,42 @@ void main(string[] args)
     }
     else
     {
-        playGameWithServer();
+        runGui();
     }
 }
 
-void playGameWithServer()
+GameState mainState;
+Tid botThread;
+bool botRunning = false;
+void setupBotAndBeginGame(GameGUI gui)
+{
+    mainState.init();
+    botThread = spawnLinked(&runBot);
+    botThread.send(mainState, false);
+    botRunning = true;
+    
+    gui.initializeGameBoard(mainState, true);
+    gui.playGame();
+}
+
+//This will check if any messages have been passed to this thread,
+//and update accordingly
+void checkMessages(GameGUI gui)
+{
+    if(botRunning)
+    {
+        receiveTimeout( 1.usecs,
+                    (string message) {
+                        stderr.writeln("Exiting");
+                        gui.gameOver = true;
+                    },
+                    (const GameState state, bool myTurn) {
+                        gui.initializeGameBoard(state, myTurn);
+                    });
+    }
+}
+
+/*void playGameWithServer()
 {
     bool awaitMessage = false;
     //Get the first message
@@ -145,30 +174,4 @@ void playGameWithServer()
         mctThread.send(latestState);
 
     }
-}
-
-void playGameInGui()
-{
-    //auto botThread = spawnLinked(&execute, message.getNextState());
-    
-    Tid guiThread = spawnLinked(&runGui);
-    Tid botThread;
-    
-    bool isDone = false;
-    bool isPlayingGame = false;
-    GameState state;
-    while(!isDone)
-    {
-        receiveTimeout( 1.usecs,
-                        (MessageType message) {
-                            switch(message)
-                            {
-                                case PLAY_GAME:
-                                    isPlayingGame = true;
-                                    state.init();
-                                    botThread = spawnLinked(&runBot, state, );
-                                    break;
-                            }
-                        });
-    }
-}
+}//*/

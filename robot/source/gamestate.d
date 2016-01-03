@@ -3,13 +3,12 @@ import std.conv;
 import std.string;
 import std.exception;
 import std.algorithm;
+import std.typecons;
 
 import core.exception : RangeError;
 
 enum Color {WHITE, BLACK};
 enum PieceType {QUEEN, KING, BISHOP, KNIGHT, ROOK, PAWN};
-enum Row {ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT};
-enum Column {A, B, C, D, E, F, G, H};
 
 //Helper function for fancy side changing
 Color opposite(Color s)
@@ -35,20 +34,20 @@ struct Move
 {
     Color   side;       //Who makes the move
     Piece   piece;      //Which piece was moved
-    Row     start_row;  //From where
-    Column  start_column;
-    Row     dest_row;   //To where
-    Column  dest_column;
+    byte     start_row;  //From where
+    byte  start_column;
+    byte     dest_row;   //To where
+    byte  dest_column;
     
     bool isCastle = false; //used if we need to effectively move two pieces
-    Row     start_row_rook;  //From where
-    Column  start_column_rook;
-    Row     dest_row_rook;   //To where
-    Column  dest_column_rook;
+    byte     start_row_rook;  //From where
+    byte  start_column_rook;
+    byte     dest_row_rook;   //To where
+    byte  dest_column_rook;
     
-    @disable this();
+    //@disable this();
 
-    this(Color s, Piece p, Row sr, Column sc, Row dr, Column dc) 
+    this(Color s, Piece p, byte sr, byte sc, byte dr, byte dc) 
     {
         side = s;
         piece = p;
@@ -58,8 +57,8 @@ struct Move
         dest_column = dc;
     }
     
-    this(Color s, Piece p, Row sr, Column sc, Row dr, Column dc,
-            Row srr, Column scr, Row drr, Column dcr) 
+    this(Color s, Piece p, byte sr, byte sc, byte dr, byte dc,
+            byte srr, byte scr, byte drr, byte dcr) 
     {
         side = s;
         piece = p;
@@ -83,24 +82,25 @@ struct Move
     }
 }
 
+enum PlayState {PLAYING, WHITE_WIN, BLACK_WIN, TIE}
+
 struct GameState
 {
     Tile[8][8] board;
     Color side; // Color who is curerntly playing
     byte movesSinceCaptureOrPawn = 0;
-    bool[Color] hasKingBeenChecked;
-    bool[Color] isKingInCheck;
+    bool[2] hasKingBeenChecked;
+    bool[2] isKingInCheck;
     
-    enum PlayState {PLAYING, WHITE_WIN, BLACK_WIN, TIE}
-    PlayState currentState = PLAYING;
+    PlayState currentState = PlayState.PLAYING;
 
-    GameState init()
+    void init()
     {
         hasKingBeenChecked[Color.WHITE] = false;
         hasKingBeenChecked[Color.BLACK] = false;
         isKingInCheck[Color.WHITE] = false;
         isKingInCheck[Color.BLACK] = false;
-        side = WHITE;
+        side = Color.WHITE;
         
         for(int c = 0; c < 8; c++)
         {
@@ -177,7 +177,7 @@ struct GameState
         if(move.piece.type != PieceType.PAWN
             && board[move.dest_column][move.dest_row].isEmpty)
         {
-            newState.movesSinceCaptureOrPawn = movesSinceCaptureOrPawn + 1;
+            newState.movesSinceCaptureOrPawn = cast(byte) (movesSinceCaptureOrPawn + 1);
         }
         else
         {
@@ -207,6 +207,8 @@ struct GameState
         {
             newState.currentState = PlayState.PLAYING;
         }
+        
+        return newState;
     }
     
     void setIsInCheck(Color side)
@@ -234,9 +236,9 @@ struct GameState
     Move[] getMoves(Color side)
     {
         Move[] possibleMoves;
-        foreach(c, tiles; board)
+        foreach(byte c, tiles; board)
         {
-            foreach(r, tile; tiles)
+            foreach(byte r, tile; tiles)
             {
                 if(tile.isEmpty || tile.piece.color != side)
                 {
@@ -245,22 +247,22 @@ struct GameState
                 
                 final switch(tile.piece.type)
                 {
-                    case QUEEN:
+                    case PieceType.QUEEN:
                         possibleMoves ~= getQueenMoves(tile, c, r);
                         break;
-                    case KING:
+                    case PieceType.KING:
                         possibleMoves ~= getKingMoves(tile, c, r);
                         break;
-                    case BISHOP:
+                    case PieceType.BISHOP:
                         possibleMoves ~= getBishopMoves(tile, c, r);
                         break;
-                    case KNIGHT:
+                    case PieceType.KNIGHT:
                         possibleMoves ~= getKnightMoves(tile, c, r);
                         break;
-                    case ROOK:
+                    case PieceType.ROOK:
                         possibleMoves ~= getRookMoves(tile, c, r);
                         break;
-                    case PAWN:
+                    case PieceType.PAWN:
                         possibleMoves ~= getPawnMoves(tile, c, r);
                         break;
                 }
@@ -283,9 +285,9 @@ struct GameState
     Move[] getKingMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
-        for(int x = c - 1; x >= 0 && x < 8; x++)
+        for(byte x = cast(byte)(c - 1); x >= 0 && x < 8; x++)
         {
-            for(int y = r - 1; y >= 0 && y < 8; y++)
+            for(byte y = cast(byte)(r - 1); y >= 0 && y < 8; y++)
             {
                 if(checkIfTileEmpty(tile.piece.color, x, y))
                 {
@@ -341,9 +343,9 @@ struct GameState
     Move[] getBishopMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
-        for(int x = c; x < 8; x++)
+        for(byte x = c; x < 8; x++)
         {
-            for(int y = r; y < 8; y++)
+            for(byte y = r; y < 8; y++)
             {
                 if(checkIfTileEmpty(tile.piece.color, x, y))
                 {
@@ -355,9 +357,9 @@ struct GameState
                 }
             }
         }
-        for(int x = c; x >= 0; x--)
+        for(byte x = c; x >= 0; x--)
         {
-            for(int y = r; y >= 0; y--)
+            for(byte y = r; y >= 0; y--)
             {
                 if(checkIfTileEmpty(tile.piece.color, x, y))
                 {
@@ -369,9 +371,9 @@ struct GameState
                 }
             }
         }
-        for(int x = c; x < 8; x++)
+        for(byte x = c; x < 8; x++)
         {
-            for(int y = r; y >= 0; y--)
+            for(byte y = r; y >= 0; y--)
             {
                 if(checkIfTileEmpty(tile.piece.color, x, y))
                 {
@@ -383,9 +385,9 @@ struct GameState
                 }
             }
         }
-        for(int x = c; x >= 0; x--)
+        for(byte x = c; x >= 0; x--)
         {
-            for(int y = r; y < 8; y++)
+            for(byte y = r; y < 8; y++)
             {
                 if(checkIfTileEmpty(tile.piece.color, x, y))
                 {
@@ -436,18 +438,20 @@ struct GameState
         {
             if(pair[0] >= 0 && pair[0] < 8
                 && pair[1] >= 0 && pair[1] < 8
-                && checkIfTileEmpty(tile.piece.color, pair[0], pair[1]))
+                && checkIfTileEmpty(tile.piece.color, cast(byte) pair[0], cast(byte) pair[1]))
             {
-                moves ~= Move(tile.piece.color, tile.piece, r, c, pair[1], pair[0]);
+                moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) pair[1], cast(byte) pair[0]);
             }
         }
+        
+        return moves;
     }
     
     Move[] getRookMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
         //Horizontal moves
-        for(int x = c - 1; x >= 0; x--)
+        for(byte x = cast(byte)(c - 1); x >= 0; x--)
         {
             if(checkIfTileEmpty(tile.piece.color, x, r))
             {
@@ -458,7 +462,7 @@ struct GameState
                 break;
             }
         }
-        for(int x = c + 1; x < 8; x++)
+        for(byte x = cast(byte)(c + 1); x < 8; x++)
         {
             if(checkIfTileEmpty(tile.piece.color, x, r))
             {
@@ -471,7 +475,7 @@ struct GameState
         }
         
         //Vertical moves
-        for(int y = r - 1; y >= 0; y--)
+        for(byte y = cast(byte)(r - 1); y >= 0; y--)
         {
             if(checkIfTileEmpty(tile.piece.color, c, y))
             {
@@ -482,7 +486,7 @@ struct GameState
                 break;
             }
         }
-        for(int y = r + 1; y < 8; y++)
+        for(byte y = cast(byte)(r + 1); y < 8; y++)
         {
             if(checkIfTileEmpty(tile.piece.color, c, y))
             {
@@ -500,16 +504,16 @@ struct GameState
     Move[] getPawnMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
-        int row1, row2;
+        byte row1, row2;
         if(tile.piece.color == Color.WHITE)
         {
-            row1 = r + 1;
-            row2 = r + 2;
+            row1 = cast(byte)(r + 1);
+            row2 = cast(byte)(r + 2);
         }
         else //is black
         {
-            row1 = r - 1;
-            row2 = r - 2;
+            row1 = cast(byte)(r - 1);
+            row2 = cast(byte)(r - 2);
         }
         
         if(checkIfTileEmpty(tile.piece.color, c, row1))
@@ -541,6 +545,8 @@ struct GameState
                 verifiedMoves ~= move;
             }
         }
+        
+        return verifiedMoves;
     }
     
     Move[] getMyValidMoves()
@@ -550,8 +556,8 @@ struct GameState
     
     bool isWinner(Color sideToCheck)
     {
-        return (currentState == WHITE_WIN && sideToCheck == Color.WHITE)
-                || (currentState == BLACK_WIN && sideToCheck == Color.BLACK)
+        return (currentState == PlayState.WHITE_WIN && sideToCheck == Color.WHITE)
+                || (currentState == PlayState.BLACK_WIN && sideToCheck == Color.BLACK);
     }
     
 }

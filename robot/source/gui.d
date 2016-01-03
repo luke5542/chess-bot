@@ -30,8 +30,11 @@ immutable KING_TEXTURE_BLACK = "./assets/black_king.png";
 
 immutable TEXT_FONT_LOC = "./assets/Roboto-Bold.ttf";
 
-Color highlightTextColor = Color(107, 44, 145);
-Color normalTextColor = Color(0, 0, 0);
+alias DsfmlColor = dsfml.graphics.color.Color;
+alias PieceColor = gamestate.Color;
+
+DsfmlColor highlightTextColor = DsfmlColor(107, 44, 145);
+DsfmlColor normalTextColor = DsfmlColor(0, 0, 0);
 
 void runGui()
 {
@@ -47,21 +50,34 @@ class GameGUI
     private
     {
         RenderWindow m_window;
-
-        //TileMap lifeMap;
-        TileMap m_tileMap;
+        bool m_gameOver = false;
 
         RectangleShape[8][8] board;
         Sprite[8][8] pieces;
         Texture[PieceType] whitePieces;
         Texture[PieceType] blackPieces;
         GuiState currentState = GuiState.MENU;
+        PieceColor mySide;
         
         Text playButton;
         Font font;
     }
+    
+    @property
+    {
+        bool gameOver(bool over)
+        {
+            m_gameOver = over;
+            return m_gameOver;
+        }
+        
+        bool gameOver()
+        {
+            return m_gameOver;
+        }
+    }
 
-    this(GameState initialState)
+    this()
     {
         auto settings = ContextSettings();
         settings.antialiasingLevel = 8;
@@ -76,7 +92,7 @@ class GameGUI
     void initializeMenu()
     {
         font = new Font();
-        if(!m_font.loadFromFile(TEXT_FONT_LOC))
+        if(!font.loadFromFile(TEXT_FONT_LOC))
         {
             writeln("Failed to load font file! Exiting...");
             exit(1);
@@ -87,12 +103,13 @@ class GameGUI
                                         playButton.getLocalBounds().height/2);
     }
     
-    void initializeGameBoard(GameState startState)
+    void initializeGameBoard(const GameState startState, bool myTurn)
     {
+        mySide = myTurn ? startState.side : startState.side.opposite;
         //initialize the board
-        for(x, column; board)
+        foreach(x, column; board)
         {
-            for(y, ref tile; column)
+            foreach(y, ref tile; column)
             {
                 tile = new RectangleShape();
                 tile.position = Vector2f(x*10, y*10);
@@ -100,44 +117,33 @@ class GameGUI
                 if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
                 {
                     //Brown
-                    tile.fillColor = Color(153, 102, 51);
+                    tile.fillColor = DsfmlColor(153, 102, 51);
                 }
                 else
                 {
                     //Beige
-                    tile.fillColor = Color(230, 204, 179);
+                    tile.fillColor = DsfmlColor(230, 204, 179);
                 }
             }
         }
         
         //TODO initialize pieces for given state...
         loadPieceTextures();
-        for(x, column; pieces)
+        foreach(x, column; pieces)
         {
-            for(y, ref sprite; column)
+            foreach(y, ref sprite; column)
             {
-                if(!initialState.board[x][y].isEmpty)
+                if(!startState.board[x][y].isEmpty)
                 {
-                    if(initialState.board[x][y].piece.color == Color.WHITE)
+                    if(startState.board[x][y].piece.color == PieceColor.WHITE)
                     {
-                        sprite = new Sprite(whitePieces[initialState.board[x][y].piece.type]);
+                        sprite = new Sprite(whitePieces[startState.board[x][y].piece.type]);
                     }
                     else
                     {
-                        sprite = new Sprite(blackPieces[initialState.board[x][y].piece.type]);
+                        sprite = new Sprite(blackPieces[startState.board[x][y].piece.type]);
                     }
-                    tile.position = Vector2f(x*10, y*10);
-                    tile.size = Vector2f(10, 10);
-                    if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
-                    {
-                        //Brown
-                        tile.fillColor = Color(153, 102, 51);
-                    }
-                    else
-                    {
-                        //Beige
-                        tile.fillColor = Color(230, 204, 179);
-                    }
+                    sprite.position = Vector2f(x*10, y*10);
                 }
             }
         }
@@ -231,7 +237,7 @@ class GameGUI
             {
                 if(playButton.getGlobalBounds().contains(mouseLoc))
                 {
-                    sendPlayGameMessage();
+                    setupBotAndBeginGame(this);
                 }
             }
         }
@@ -239,9 +245,14 @@ class GameGUI
 
     void update(ref RenderWindow window, Duration time)
     {
+        if(m_gameOver)
+        {
+            window.close();
+        }
+        auto mouseLoc = Mouse.getPosition(window);
         final switch(currentState)
         {
-            case MENU:
+            case GuiState.MENU:
                 if(playButton.getGlobalBounds().contains(mouseLoc))
                 {
                     playButton.setColor(highlightTextColor);
@@ -250,10 +261,10 @@ class GameGUI
                 {
                     playButton.setColor(normalTextColor);
                 }
-                checkMessages();
+                checkMessages(this);
                 break;
-            case PLAYING:
-                checkMessages();
+            case GuiState.PLAYING:
+                checkMessages(this);
                 break;
         }
     }
@@ -264,10 +275,10 @@ class GameGUI
         
         final switch(currentState)
         {
-            case MENU:
+            case GuiState.MENU:
                 window.draw(playButton);
                 break;
-            case PLAYING:
+            case GuiState.PLAYING:
                 foreach(column; board)
                 {
                     foreach(tile; column)
@@ -293,22 +304,4 @@ class GameGUI
         currentState = GuiState.PLAYING;
     }
 
-}
-
-void sendPlayGameMessage()
-{
-    
-}
-
-
-//This will check if any messages have been passed to this thread,
-//and update accordingly
-void checkMessages(GameGUI gui)
-{
-    //TODO
-    receiveTimeout( 1.usecs,
-                    (Exit message) {
-                        stderr.writeln("Exiting");
-                        done = true;
-                    });
 }

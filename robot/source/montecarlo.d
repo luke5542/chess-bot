@@ -5,11 +5,10 @@ import std.math;
 import std.conv;
 
 import core.time;
+import core.thread;
 
 import gamestate;
-import idlethread;
-import server;
-import heuristics;
+import app;
 
 immutable MY_SEARCH_RATE = 65;
 immutable OPP_SEARCH_RATE = 80;
@@ -48,7 +47,13 @@ class MCTreeNode
     // Variables from the selection formula.
     real w = 0; // Number of wins after this move.
     real n = 1; // Number of simulations after this move.
-    real c = SQRT2; // Exploration parameter  
+    real c = SQRT2; // Exploration parameter
+    
+    this(GameState state, Move move)
+    {
+        m_currentState = state;
+        m_moveToHere = move;
+    }
 
     real obtainUtility()
     {
@@ -73,14 +78,14 @@ MCTreeNode root = null;
 bool canSearchTree = false;
 
 // Run till interrupted.
-void execute(GameState state)
+void runBot()
 {
     debug writeln("Running Monte Carlo Tree Search...");
 
     try
     {
         bool done = false;
-        do {
+        while(!done) {
             if(root !is null && canSearchTree)
                 expandTree();
             else
@@ -90,7 +95,7 @@ void execute(GameState state)
             done = checkMessages();
 
             debug writeln("Time to loop...", '\n');
-        } while(!done);
+        }
 
         debug writeln("MCT Thread is ending from lack of work.");
   
@@ -138,7 +143,7 @@ void expandTree()
     // Unless current node ends the game
     // Create all the children and choose the most promising one.
     Move[] moves = currentNode.m_currentState.getMyValidMoves();
-    if(!isEndGame(currentNode.m_currentState) && moves.length > 0)
+    if(currentNode.m_currentState.currentState == PlayState.PLAYING && moves.length > 0)
     {
         debug writeln("Not end game");
 
@@ -148,12 +153,10 @@ void expandTree()
         //Make sure currentNode is no longer a leaf.
         currentNode.m_isLeafNode = false;
 
-        real prevUtility = currentNode.childrenUtility;
+        real prevUtility = currentNode.obtainUtility();
         foreach(index, move; moves)
         {
-            MCTreeNode newChild = new MCTreeNode();
-            newChild.m_currentState = currentNode.m_currentState.performMove(move);
-            newChild.m_moveToHere = move;
+            MCTreeNode newChild = new MCTreeNode(currentNode.m_currentState.performMove(move), move);
             newChild.parent = currentNode;
             newChild.myTurn = (newChild.m_currentState.side == currentNode.m_currentState.side) 
                             ? currentNode.myTurn : !currentNode.myTurn;
@@ -192,7 +195,7 @@ bool checkMessages()
     {
         debug writeln("Checking for messages...");
         receiveTimeout( 1.usecs,
-                (Exit message) {
+                (string message) {
                     debug writeln("Exiting");
                     return true;
                 },
@@ -242,7 +245,7 @@ bool checkMessages()
                     canSearchTree = true;
                 },
                 (GameState newState, bool myTurn) {
-                    root = new MCTreeNode();
+                    root = new MCTreeNode(newState, Move());
 
                     // Set it up.
                     root.m_currentState = newState;
@@ -251,7 +254,7 @@ bool checkMessages()
                 },
                 (PrintTreeStats message) {
                     //Print out various statistics about this tree.
-                    printTreeStats(root);
+                    //printTreeStats(root);
                 });
     }
     catch(OwnerTerminated exc)
@@ -266,12 +269,12 @@ bool checkMessages()
 
 // Perform the simulation part of the Monte Carlo algortihm by executing
 // random moves from the current game state.
-bool simulateGame(GameState state, Side mySide)
+bool simulateGame(GameState state, Color myColor)
 {
     Move[] moves = state.getMyValidMoves();
     int randomIndex;
 
-    while(state.currentState == PLAYING)
+    while(state.currentState == PlayState.PLAYING)
     {
         randomIndex = to!int(uniform(0, moves.length));
 
@@ -283,7 +286,7 @@ bool simulateGame(GameState state, Side mySide)
     } // while there are still possible moves.
 
     // Check who has won.
-    return state.isWinner(mySide);
+    return state.isWinner(myColor);
 
 } // simulateGame
 
@@ -302,7 +305,7 @@ void backpropagate(bool weWon, MCTreeNode currentNode)
     }
 }
 
-void printTreeStats(MCTreeNode root)
+/*void printTreeStats(MCTreeNode root)
 {
   //TODO print out the various tree statistics...
   writeln("Root children: ");
@@ -322,7 +325,7 @@ void printTreeStats(MCTreeNode root)
   //writeln("Seeds North: ", root.m_currentState.northPit, ", Seeds South: ", 
   									//root.m_currentState.southPit);
   writeln();
-}
+}//*/
 
 int getNumNodes(MCTreeNode root)
 {
@@ -347,7 +350,7 @@ int getNumNodes(MCTreeNode root)
 }
 
 // NEW method
-void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)
+/*void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)
 {
 	if(node !is null)
 	{
@@ -359,4 +362,4 @@ void updateAveragedUtility(MCTreeNode node, real oldValue, real newValue)
         
         updateAveragedUtility(node.parent, prevUtility, node.childrenAverageUtility);
 	}
-}
+}//*/

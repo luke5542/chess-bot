@@ -1,7 +1,7 @@
 {
-	"name": "robot",
-	"description": "An AI robot designed to play 7,7 Kalah.",
-	"copyright": "Copyright © 2014, COMP34120 Team 3D",
+	"name": "chessbot",
+	"description": "An AI robot designed to play Chess, as well as a gui to play against the bot.",
+	"copyright": "Copyright © 2015, Intrivix",
 	"authors": ["Devin Ridgway", "Dan Underwood", "Diego Abel"],
 
     "configurations":[
@@ -15,8 +15,11 @@
             {
                 "dsfml": "~master",
             },
-			"postBuildCommands-osx":["mkdir -p bin/MacOS/assets",
-                            "cp -rf ./assets/* bin/MacOS/assets/",
+            "lflags-osx": ["-Llibs"],
+            "lflags-linux": ["-Llibs", "-R."],
+            "lflags-windows": ["+dlls\\"],
+			"postBuildCommands-osx":["mkdir -p bin/debug/assets",
+                            "cp -rf ./assets/* bin/debug/assets/",
                             "mkdir -p bin/Frameworks",
                             "cp -rf Frameworks/* bin/Frameworks/",
                             "cp -rf libs/*.dylib bin/Frameworks/",
@@ -49,12 +52,8 @@
             "postBuildCommands-linux":["mkdir -p bin/debug/assets",
                     "cp -rf .assets/* bin/debug/assets/"],
             "postBuildCommands-windows":["copy assets\\* bin\\debug\\assets\\"],
-            "targetPath-windows": "bin\\debug\\",
-            "workingDirectory-windows":"bin\\debug\\",
-			"targetPath-linux": "bin\\debug\\",
-            "workingDirectory-linux":"bin\\debug\\",
-			"targetPath-osx": "bin\\MacOS\\",
-            "workingDirectory-osx":"bin\\MacOS\\"
+			"targetPath": "bin\\debug\\",
+            "workingDirectory":"bin\\debug\\"
         }
     ],
 }
