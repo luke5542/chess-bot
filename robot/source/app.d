@@ -44,7 +44,9 @@ void checkMessages(GameGUI gui)
 {
     if(botRunning)
     {
-        receiveTimeout( 1.usecs,
+        try
+        {
+            receiveTimeout( 1.usecs,
                     (string message) {
                         stderr.writeln("Exiting");
                         gui.gameOver = true;
@@ -52,6 +54,12 @@ void checkMessages(GameGUI gui)
                     (const GameState state, bool myTurn) {
                         gui.initializeGameBoard(state, myTurn);
                     });
+        }
+        catch(LinkTerminated ltEx)
+        {
+            writeln(ltEx);
+            gui.gameOver = true;
+        }
     }
 }
 

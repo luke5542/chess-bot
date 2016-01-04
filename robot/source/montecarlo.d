@@ -93,11 +93,9 @@ void runBot()
 
             //Check for server messages...
             done = checkMessages();
-
-            debug writeln("Time to loop...", '\n');
         }
 
-        debug writeln("MCT Thread is ending from lack of work.");
+        debug writeln("MCT Thread is exiting.");
   
     }
     catch(Exception e)
@@ -137,12 +135,13 @@ void expandTree()
         currentNode = newNode;
     } // while
 
-    debug writeln("Found leaf node...");
+    debug writeln("Found leaf node... ", currentNode is null);
 
     // Expansion
     // Unless current node ends the game
     // Create all the children and choose the most promising one.
     Move[] moves = currentNode.m_currentState.getMyValidMoves();
+    debug writeln("Num moves: ", moves.length);
     if(currentNode.m_currentState.currentState == PlayState.PLAYING && moves.length > 0)
     {
         debug writeln("Not end game");
@@ -193,7 +192,7 @@ bool checkMessages()
 {
     try
     {
-        debug writeln("Checking for messages...");
+        //debug writeln("Checking for messages...");
         receiveTimeout( 1.usecs,
                 (string message) {
                     debug writeln("Exiting");
@@ -250,7 +249,7 @@ bool checkMessages()
                     // Set it up.
                     root.m_currentState = newState;
                     root.myTurn = myTurn;
-                    canSearchTree = true;
+                    canSearchTree = myTurn;
                 },
                 (PrintTreeStats message) {
                     //Print out various statistics about this tree.

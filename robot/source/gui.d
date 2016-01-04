@@ -3,6 +3,7 @@ import std.c.stdlib;
 import std.concurrency;
 import std.random;
 import std.conv;
+import core.time;
 
 import dsfml.system;
 import dsfml.graphics;
@@ -44,6 +45,9 @@ void runGui()
 
 enum GuiState {MENU, PLAYING};
 
+immutable TILE_SIZE = 50;
+immutable TILE_OFFSET = Vector2f((WINDOW_WIDTH - 400)/2, (WINDOW_HEIGHT - 400)/2);
+
 class GameGUI
 {
 
@@ -52,7 +56,7 @@ class GameGUI
         RenderWindow m_window;
         bool m_gameOver = false;
 
-        RectangleShape[8][8] board;
+        RectangleShape[8][8] boardTiles;
         Sprite[8][8] pieces;
         Texture[PieceType] whitePieces;
         Texture[PieceType] blackPieces;
@@ -84,8 +88,6 @@ class GameGUI
         m_window = new RenderWindow(VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Chess", Window.Style.DefaultStyle, settings);
         m_window.setFramerateLimit(30);
         
-        //TODO set a new View to be the 'camera'
-        
         initializeMenu();
     }
     
@@ -107,13 +109,15 @@ class GameGUI
     {
         mySide = myTurn ? startState.side : startState.side.opposite;
         //initialize the board
-        foreach(x, column; board)
+        for(int x = 0; x < 8; x++)
         {
-            foreach(y, ref tile; column)
+            for(int y = 0; y < 8; y++)
             {
-                tile = new RectangleShape();
-                tile.position = Vector2f(x*10, y*10);
-                tile.size = Vector2f(10, 10);
+                auto tile = new RectangleShape();
+                tile.position = Vector2f(TILE_OFFSET.x + x * TILE_SIZE,
+                                            TILE_OFFSET.y + y * TILE_SIZE);
+                tile.size = Vector2f(TILE_SIZE, TILE_SIZE);
+                tile.origin = Vector2f(TILE_SIZE/2, TILE_SIZE/2);
                 if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
                 {
                     //Brown
@@ -124,26 +128,34 @@ class GameGUI
                     //Beige
                     tile.fillColor = DsfmlColor(230, 204, 179);
                 }
+                
+                boardTiles[x][y] = tile;
             }
         }
         
         //TODO initialize pieces for given state...
         loadPieceTextures();
-        foreach(x, column; pieces)
+        for(int x = 0; x < 8; x++)
         {
-            foreach(y, ref sprite; column)
+            for(int y = 0; y < 8; y++)
             {
                 if(!startState.board[x][y].isEmpty)
                 {
+                    auto index = startState.board[x][y].piece.type;
                     if(startState.board[x][y].piece.color == PieceColor.WHITE)
                     {
-                        sprite = new Sprite(whitePieces[startState.board[x][y].piece.type]);
+                        pieces[x][y] = new Sprite(whitePieces[index]);
+                        auto size = whitePieces[index].getSize();
+                        pieces[x][y].origin = Vector2f(size.x/2, size.y/2);
                     }
                     else
                     {
-                        sprite = new Sprite(blackPieces[startState.board[x][y].piece.type]);
+                        pieces[x][y] = new Sprite(blackPieces[index]);
+                        auto size = blackPieces[index].getSize();
+                        pieces[x][y].origin = Vector2f(size.x/2, size.y/2);
                     }
-                    sprite.position = Vector2f(x*10, y*10);
+                    pieces[x][y].position = Vector2f(TILE_OFFSET.x + x * TILE_SIZE,
+                                                        TILE_OFFSET.y + y * TILE_SIZE);
                 }
             }
         }
@@ -157,14 +169,18 @@ class GameGUI
         whitePieces[PieceType.BISHOP] = new Texture();
         whitePieces[PieceType.QUEEN] = new Texture();
         whitePieces[PieceType.KING] = new Texture();
-        if (!whitePieces[PieceType.PAWN].loadFromFile(PAWN_TEXTURE_WHITE)
-            && !whitePieces[PieceType.ROOK].loadFromFile(ROOK_TEXTURE_WHITE)
-            && !whitePieces[PieceType.KNIGHT].loadFromFile(KNIGHT_TEXTURE_WHITE)
-            && !whitePieces[PieceType.BISHOP].loadFromFile(BISHOP_TEXTURE_WHITE)
-            && !whitePieces[PieceType.QUEEN].loadFromFile(QUEEN_TEXTURE_WHITE)
-            && !whitePieces[PieceType.KING].loadFromFile(KING_TEXTURE_WHITE)) {
+        if(!whitePieces[PieceType.PAWN].loadFromFile(PAWN_TEXTURE_WHITE))
             exit(-1);
-        }
+        if(!whitePieces[PieceType.ROOK].loadFromFile(ROOK_TEXTURE_WHITE))
+            exit(-1);
+        if(!whitePieces[PieceType.KNIGHT].loadFromFile(KNIGHT_TEXTURE_WHITE))
+            exit(-1);
+        if(!whitePieces[PieceType.BISHOP].loadFromFile(BISHOP_TEXTURE_WHITE))
+            exit(-1);
+        if(!whitePieces[PieceType.QUEEN].loadFromFile(QUEEN_TEXTURE_WHITE))
+            exit(-1);
+        if(!whitePieces[PieceType.KING].loadFromFile(KING_TEXTURE_WHITE))
+            exit(-1);
             
         blackPieces[PieceType.PAWN] = new Texture();
         blackPieces[PieceType.ROOK] = new Texture();
@@ -172,14 +188,18 @@ class GameGUI
         blackPieces[PieceType.BISHOP] = new Texture();
         blackPieces[PieceType.QUEEN] = new Texture();
         blackPieces[PieceType.KING] = new Texture();
-        if (!blackPieces[PieceType.PAWN].loadFromFile(PAWN_TEXTURE_BLACK)
-            && !blackPieces[PieceType.ROOK].loadFromFile(ROOK_TEXTURE_BLACK)
-            && !blackPieces[PieceType.KNIGHT].loadFromFile(KNIGHT_TEXTURE_BLACK)
-            && !blackPieces[PieceType.BISHOP].loadFromFile(BISHOP_TEXTURE_BLACK)
-            && !blackPieces[PieceType.QUEEN].loadFromFile(QUEEN_TEXTURE_BLACK)
-            && !blackPieces[PieceType.KING].loadFromFile(KING_TEXTURE_BLACK)) {
+        if(!blackPieces[PieceType.PAWN].loadFromFile(PAWN_TEXTURE_BLACK))
             exit(-1);
-        }
+        if(!blackPieces[PieceType.ROOK].loadFromFile(ROOK_TEXTURE_BLACK))
+            exit(-1);
+        if(!blackPieces[PieceType.KNIGHT].loadFromFile(KNIGHT_TEXTURE_BLACK))
+            exit(-1);
+        if(!blackPieces[PieceType.BISHOP].loadFromFile(BISHOP_TEXTURE_BLACK))
+            exit(-1);
+        if(!blackPieces[PieceType.QUEEN].loadFromFile(QUEEN_TEXTURE_BLACK))
+            exit(-1);
+        if(!blackPieces[PieceType.KING].loadFromFile(KING_TEXTURE_BLACK))
+            exit(-1);
     }
 
     void run()
@@ -271,7 +291,7 @@ class GameGUI
 
     void draw(ref RenderWindow window)
     {
-        window.clear();
+        window.clear(DsfmlColor(77, 77, 255));
         
         final switch(currentState)
         {
@@ -279,18 +299,24 @@ class GameGUI
                 window.draw(playButton);
                 break;
             case GuiState.PLAYING:
-                foreach(column; board)
+                foreach(column; boardTiles)
                 {
                     foreach(tile; column)
                     {
-                        window.draw(tile);
+                        if(tile !is null)
+                        {
+                            window.draw(tile);
+                        }
                     }
                 }
                 foreach(column; pieces)
                 {
                     foreach(piece; column)
                     {
-                        window.draw(piece);
+                        if(piece !is null)
+                        {
+                            window.draw(piece);
+                        }
                     }
                 }
                 break;

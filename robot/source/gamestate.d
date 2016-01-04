@@ -120,7 +120,7 @@ struct GameState
         for(int t = 0; t < 8; t++)
         {
             board[t][1].piece = Piece(PieceType.PAWN, Color.WHITE, false);
-            board[t][6].piece = Piece(PieceType.PAWN, Color.WHITE, false);
+            board[t][6].piece = Piece(PieceType.PAWN, Color.BLACK, false);
             board[t][1].isEmpty = false;
             board[t][6].isEmpty = false;
         }
