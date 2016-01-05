@@ -25,6 +25,7 @@ void main(string[] args)
 }
 
 GameState mainState;
+Color guiSide;
 Tid botThread;
 bool botRunning = false;
 void setupBotAndBeginGame(GameGUI gui)
@@ -35,7 +36,13 @@ void setupBotAndBeginGame(GameGUI gui)
     botRunning = true;
     
     gui.initializeGameBoard(mainState, true);
+    guiSide = mainState.side;
     gui.playGame();
+}
+
+Move[] getMovesForLoc(int x, int y)
+{
+    return mainState.checkIfIsInCheck(guiSide, mainState.getMoves(cast(byte) x, cast(byte) y));
 }
 
 //This will check if any messages have been passed to this thread,

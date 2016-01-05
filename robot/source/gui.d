@@ -3,6 +3,7 @@ import std.c.stdlib;
 import std.concurrency;
 import std.random;
 import std.conv;
+import std.typecons;
 import core.time;
 
 import dsfml.system;
@@ -36,6 +37,10 @@ alias PieceColor = gamestate.Color;
 
 DsfmlColor highlightTextColor = DsfmlColor(107, 44, 145);
 DsfmlColor normalTextColor = DsfmlColor(0, 0, 0);
+DsfmlColor selectedColor = DsfmlColor(51, 204, 0);
+DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
+DsfmlColor brownTile = DsfmlColor(153, 102, 51);
+DsfmlColor beigeTile = DsfmlColor(230, 204, 179);
 
 void runGui()
 {
@@ -118,16 +123,7 @@ class GameGUI
                                             TILE_OFFSET.y + y * TILE_SIZE);
                 tile.size = Vector2f(TILE_SIZE, TILE_SIZE);
                 tile.origin = Vector2f(TILE_SIZE/2, TILE_SIZE/2);
-                if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
-                {
-                    //Brown
-                    tile.fillColor = DsfmlColor(153, 102, 51);
-                }
-                else
-                {
-                    //Beige
-                    tile.fillColor = DsfmlColor(230, 204, 179);
-                }
+                setTileColor(tile, x, y);
                 
                 boardTiles[x][y] = tile;
             }
@@ -158,6 +154,18 @@ class GameGUI
                                                         TILE_OFFSET.y + y * TILE_SIZE);
                 }
             }
+        }
+    }
+    
+    void setTileColor(Shape tile, int x, int y)
+    {
+        if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
+        {
+            tile.fillColor = brownTile;
+        }
+        else
+        {
+            tile.fillColor = beigeTile;
         }
     }
     
@@ -260,6 +268,32 @@ class GameGUI
                     setupBotAndBeginGame(this);
                 }
             }
+            else if(currentState == GuiState.PLAYING)
+            {
+                Tuple!(int, int) selectedLoc;
+                selectedLoc[0] = -1;
+                selectedLoc[1] = -1;
+                foreach(int x, column; boardTiles)
+                {
+                    foreach(int y, tile; column)
+                    {
+                        if(tile !is null)
+                        {
+                            if(pieces[x][y] !is null && tile.getGlobalBounds.contains(mouseLoc))
+                            {
+                                tile.fillColor = selectedColor;
+                                selectedLoc[0] = x;
+                                selectedLoc[1] = y;
+                            }
+                            else
+                            {
+                                setTileColor(tile, x, y);
+                            }
+                        }
+                    }
+                }
+                highlightMoves(selectedLoc);
+            }
         }
     }
 
@@ -328,6 +362,22 @@ class GameGUI
     void playGame()
     {
         currentState = GuiState.PLAYING;
+    }
+    
+    void highlightMoves(Tuple!(int, int) selectedPiece)
+    {
+        writeln("Checking moves...");
+        if(selectedPiece[0] < 0 || selectedPiece[1] < 0)
+            return;
+            
+        Move[] moves = getMovesForLoc(selectedPiece[0], selectedPiece[1]);
+        writeln("highlighting tiles...");
+        foreach(move; moves)
+        {
+            auto tile = boardTiles[move.dest_column][move.dest_row];
+            tile.fillColor = validMoveColor;
+        }
+        writeln("Done highlighting valid moves...");
     }
 
 }

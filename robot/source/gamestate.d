@@ -32,18 +32,18 @@ struct Tile
 
 struct Move
 {
-    Color   side;       //Who makes the move
-    Piece   piece;      //Which piece was moved
-    byte     start_row;  //From where
-    byte  start_column;
-    byte     dest_row;   //To where
-    byte  dest_column;
+    Color side;       //Who makes the move
+    Piece piece;      //Which piece was moved
+    byte start_row;  //From where
+    byte start_column;
+    byte dest_row;   //To where
+    byte dest_column;
     
     bool isCastle = false; //used if we need to effectively move two pieces
-    byte     start_row_rook;  //From where
-    byte  start_column_rook;
-    byte     dest_row_rook;   //To where
-    byte  dest_column_rook;
+    byte start_row_rook;  //From where
+    byte start_column_rook;
+    byte dest_row_rook;   //To where
+    byte dest_column_rook;
     
     //@disable this();
 
@@ -168,9 +168,15 @@ struct GameState
         board[4][7].isEmpty = false;
         
     }
+    
+    
+    GameState performMove(Move move)
+    {
+        return performMove(move, true);
+    }
 
     //Performs a move given a move and a state
-    GameState performMove(Move move)
+    GameState performMove(Move move, bool updatePlayState)
     {
         GameState newState;
         
@@ -195,17 +201,25 @@ struct GameState
         newState.setIsInCheck(Color.WHITE);
         newState.setIsInCheck(Color.BLACK);
         
-        if(newState.movesSinceCaptureOrPawn >= 50)
+        if(updatePlayState)
         {
-            newState.currentState = PlayState.TIE;
-        }
-        else if(newState.getValidMoves(newState.side).length == 0)
-        {
-            newState.currentState = (newState.side == Color.WHITE ? PlayState.BLACK_WIN : PlayState.WHITE_WIN);
+            if(newState.movesSinceCaptureOrPawn >= 50)
+            {
+                newState.currentState = PlayState.TIE;
+            }
+            else if(newState.isKingInCheck[newState.side])
+            {
+                if(newState.getValidMoves(newState.side).length == 0)
+                    newState.currentState = (newState.side == Color.WHITE ? PlayState.BLACK_WIN : PlayState.WHITE_WIN);
+            }
+            else
+            {
+                newState.currentState = PlayState.PLAYING;
+            }
         }
         else
         {
-            newState.currentState = PlayState.PLAYING;
+            newState.currentState = currentState;
         }
         
         return newState;
@@ -232,6 +246,16 @@ struct GameState
         }
     }
     
+    Move[] getMoves(byte x, byte y)
+    {
+        if(!board[x][y].isEmpty)
+        {
+            return getMoves(board[x][y], x, y);
+        }
+        
+        return null;
+    }
+    
     //Returns a dynamic array of Move structs that are valid from the current state
     Move[] getMoves(Color side)
     {
@@ -245,31 +269,30 @@ struct GameState
                     continue;
                 }
                 
-                final switch(tile.piece.type)
-                {
-                    case PieceType.QUEEN:
-                        possibleMoves ~= getQueenMoves(tile, c, r);
-                        break;
-                    case PieceType.KING:
-                        possibleMoves ~= getKingMoves(tile, c, r);
-                        break;
-                    case PieceType.BISHOP:
-                        possibleMoves ~= getBishopMoves(tile, c, r);
-                        break;
-                    case PieceType.KNIGHT:
-                        possibleMoves ~= getKnightMoves(tile, c, r);
-                        break;
-                    case PieceType.ROOK:
-                        possibleMoves ~= getRookMoves(tile, c, r);
-                        break;
-                    case PieceType.PAWN:
-                        possibleMoves ~= getPawnMoves(tile, c, r);
-                        break;
-                }
+                possibleMoves ~= getMoves(tile, c, r);
             }
         }
         
         return possibleMoves;
+    }
+    
+    Move[] getMoves(Tile tile, byte c, byte r)
+    {
+        final switch(tile.piece.type)
+        {
+            case PieceType.QUEEN:
+                return getQueenMoves(tile, c, r);
+            case PieceType.KING:
+                return getKingMoves(tile, c, r);
+            case PieceType.BISHOP:
+                return getBishopMoves(tile, c, r);
+            case PieceType.KNIGHT:
+                return getKnightMoves(tile, c, r);
+            case PieceType.ROOK:
+                return getRookMoves(tile, c, r);
+            case PieceType.PAWN:
+                return getPawnMoves(tile, c, r);
+        }
     }
     
     Move[] getValidMoves(Color side)
@@ -436,9 +459,7 @@ struct GameState
         
         foreach(pair; pairs)
         {
-            if(pair[0] >= 0 && pair[0] < 8
-                && pair[1] >= 0 && pair[1] < 8
-                && checkIfTileEmpty(tile.piece.color, cast(byte) pair[0], cast(byte) pair[1]))
+            if(checkIfTileEmpty(tile.piece.color, cast(byte) pair[0], cast(byte) pair[1]))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) pair[1], cast(byte) pair[0]);
             }
@@ -530,7 +551,10 @@ struct GameState
     
     bool checkIfTileEmpty(Color side, int c, int r)
     {
-        return board[c][r].isEmpty || board[c][r].piece.color != side;
+        if(c < 8 && c >= 0 && r < 8 && r >= 0)
+            return board[c][r].isEmpty || board[c][r].piece.color != side;
+        else
+            return false;
     }
     
     Move[] checkIfIsInCheck(Color side, Move[] moves)
@@ -539,7 +563,7 @@ struct GameState
         //Need to make sure moves leave the player without check
         foreach(move; moves)
         {
-            auto newState = performMove(move);
+            auto newState = performMove(move, false);
             if(!newState.isKingInCheck[side])
             {
                 verifiedMoves ~= move;
