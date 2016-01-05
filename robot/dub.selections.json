@@ -1,6 +1,8 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"dsfml": "~master"
+		"d-unit": "~master",
+		"dsfml": "~master",
+		"animated": "~develop"
 	}
 }

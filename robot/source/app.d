@@ -28,6 +28,7 @@ GameState mainState;
 Color guiSide;
 Tid botThread;
 bool botRunning = false;
+bool isFirstMove = true;
 void setupBotAndBeginGame(GameGUI gui)
 {
     mainState.init();
@@ -45,6 +46,29 @@ Move[] getMovesForLoc(int x, int y)
     return mainState.checkIfIsInCheck(guiSide, mainState.getMoves(cast(byte) x, cast(byte) y));
 }
 
+bool isMyPiece(int x, int y)
+{
+    return mainState.board[x][y].piece.color == guiSide;
+}
+
+void playMove(Move m)
+{
+    mainState = mainState.performMove(m);
+    if(isFirstMove)
+    {
+        botThread.send(mainState);
+    }
+    else
+    {
+        botThread.send(m);
+    }
+}
+
+void requestBotMove()
+{
+    botThread.send(GetBestMove());
+}
+
 //This will check if any messages have been passed to this thread,
 //and update accordingly
 void checkMessages(GameGUI gui)
@@ -58,8 +82,8 @@ void checkMessages(GameGUI gui)
                         stderr.writeln("Exiting");
                         gui.gameOver = true;
                     },
-                    (const GameState state, bool myTurn) {
-                        gui.initializeGameBoard(state, myTurn);
+                    (Move move) {
+                        gui.updateGuiForMove(move);
                     });
         }
         catch(LinkTerminated ltEx)

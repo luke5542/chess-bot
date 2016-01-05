@@ -238,6 +238,7 @@ bool checkMessages()
                         {
                             root = node;
                             root.parent = null;
+                            debug writeln("Node found for move");
                             break;
                         }
                     }

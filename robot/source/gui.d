@@ -10,6 +10,8 @@ import dsfml.system;
 import dsfml.graphics;
 import dsfml.window;
 
+import animate.d;
+
 import gamestate;
 import app;
 
@@ -42,6 +44,8 @@ DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
 DsfmlColor brownTile = DsfmlColor(153, 102, 51);
 DsfmlColor beigeTile = DsfmlColor(230, 204, 179);
 
+auto botMoveDuration = secs(10);
+
 void runGui()
 {
     GameGUI gui = new GameGUI();
@@ -67,6 +71,8 @@ class GameGUI
         Texture[PieceType] blackPieces;
         GuiState currentState = GuiState.MENU;
         PieceColor mySide;
+        Move[] selectedMoves;
+        SimpleAnimation botMoveTimer;
         
         Text playButton;
         Font font;
@@ -150,11 +156,15 @@ class GameGUI
                         auto size = blackPieces[index].getSize();
                         pieces[x][y].origin = Vector2f(size.x/2, size.y/2);
                     }
-                    pieces[x][y].position = Vector2f(TILE_OFFSET.x + x * TILE_SIZE,
-                                                        TILE_OFFSET.y + y * TILE_SIZE);
+                    pieces[x][y].position = getPiecePosition(x, y);
                 }
             }
         }
+    }
+    
+    Vector2f getPiecePosition(int x, int y)
+    {
+        return Vector2f(TILE_OFFSET.x + x * TILE_SIZE, TILE_OFFSET.y + y * TILE_SIZE);
     }
     
     void setTileColor(Shape tile, int x, int y)
@@ -279,11 +289,21 @@ class GameGUI
                     {
                         if(tile !is null)
                         {
-                            if(pieces[x][y] !is null && tile.getGlobalBounds.contains(mouseLoc))
+                            int i;
+                            if(pieces[x][y] !is null && isMyPiece(x, y)
+                                && tile.getGlobalBounds.contains(mouseLoc))
                             {
                                 tile.fillColor = selectedColor;
                                 selectedLoc[0] = x;
                                 selectedLoc[1] = y;
+                            }
+                            else if((i = findMoveFromSelectedPiece(x, y)) >= 0)
+                            {
+                                Move m = selectedMoves[i];
+                                updateGuiForMove(m);
+                                playMove(m);
+                                selectedMoves.length = 0;
+                                botMoveTimer = new SimpleAnimation(botMoveDuration);
                             }
                             else
                             {
@@ -319,6 +339,15 @@ class GameGUI
                 break;
             case GuiState.PLAYING:
                 checkMessages(this);
+                if(botMoveTimer != null)
+                {
+                    botMoveTimer.updateProgress(time);
+                    if(!botMoveTimer.isRunning())
+                    {
+                        botMoveTimer = null;
+                        requestBotMove();
+                    }
+                }
                 break;
         }
     }
@@ -366,18 +395,36 @@ class GameGUI
     
     void highlightMoves(Tuple!(int, int) selectedPiece)
     {
-        writeln("Checking moves...");
         if(selectedPiece[0] < 0 || selectedPiece[1] < 0)
             return;
             
-        Move[] moves = getMovesForLoc(selectedPiece[0], selectedPiece[1]);
-        writeln("highlighting tiles...");
-        foreach(move; moves)
+        selectedMoves = getMovesForLoc(selectedPiece[0], selectedPiece[1]);
+        foreach(move; selectedMoves)
         {
             auto tile = boardTiles[move.dest_column][move.dest_row];
             tile.fillColor = validMoveColor;
         }
-        writeln("Done highlighting valid moves...");
+    }
+    
+    //Returns the index of the move, or -1 if it doesn't exist
+    int findMoveFromSelectedPiece(int x, int y)
+    {
+        foreach(int i, move; selectedMoves)
+        {
+            if(move.dest_column == x && move.dest_row == y)
+            {
+                return i;
+            }
+        }
+        
+        return -1;
+    }
+    
+    void updateGuiForMove(Move m)
+    {
+        pieces[m.dest_column][m.dest_row] = pieces[m.start_column][m.start_row];
+        pieces[m.start_column][m.start_row] = null;
+        pieces[m.dest_column][m.dest_row].position = getPiecePosition(m.dest_column, m.dest_row);
     }
 
 }
