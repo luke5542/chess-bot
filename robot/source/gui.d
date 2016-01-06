@@ -22,15 +22,15 @@ immutable PAWN_TEXTURE_WHITE = "./assets/white_pawn.png";
 immutable ROOK_TEXTURE_WHITE = "./assets/white_rook.png";
 immutable KNIGHT_TEXTURE_WHITE = "./assets/white_knight.png";
 immutable BISHOP_TEXTURE_WHITE = "./assets/white_bishop.png";
-immutable QUEEN_TEXTURE_WHITE = "./assets/white_queen.png";
-immutable KING_TEXTURE_WHITE = "./assets/white_king.png";
+immutable QUEEN_TEXTURE_WHITE = "./assets/white_king.png"; //King and queen intentionally swapped, because somewhere there's a bug...
+immutable KING_TEXTURE_WHITE = "./assets/white_queen.png";
 
 immutable PAWN_TEXTURE_BLACK = "./assets/black_pawn.png";
 immutable ROOK_TEXTURE_BLACK = "./assets/black_rook.png";
 immutable KNIGHT_TEXTURE_BLACK = "./assets/black_knight.png";
 immutable BISHOP_TEXTURE_BLACK = "./assets/black_bishop.png";
-immutable QUEEN_TEXTURE_BLACK = "./assets/black_queen.png";
-immutable KING_TEXTURE_BLACK = "./assets/black_king.png";
+immutable QUEEN_TEXTURE_BLACK = "./assets/black_king.png";
+immutable KING_TEXTURE_BLACK = "./assets/black_queen.png";
 
 immutable TEXT_FONT_LOC = "./assets/Roboto-Bold.ttf";
 
@@ -44,7 +44,7 @@ DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
 DsfmlColor brownTile = DsfmlColor(153, 102, 51);
 DsfmlColor beigeTile = DsfmlColor(230, 204, 179);
 
-auto botMoveDuration = seconds(10);
+auto botMoveDuration = seconds(1);
 
 void runGui()
 {
@@ -125,8 +125,7 @@ class GameGUI
             for(int y = 0; y < 8; y++)
             {
                 auto tile = new RectangleShape();
-                tile.position = Vector2f(TILE_OFFSET.x + x * TILE_SIZE,
-                                            TILE_OFFSET.y + y * TILE_SIZE);
+                tile.position = getPiecePosition(x, y);
                 tile.size = Vector2f(TILE_SIZE, TILE_SIZE);
                 tile.origin = Vector2f(TILE_SIZE/2, TILE_SIZE/2);
                 setTileColor(tile, x, y);
@@ -169,7 +168,7 @@ class GameGUI
     
     void setTileColor(Shape tile, int x, int y)
     {
-        if((y % 2 == 0 && x % 2 == 0) || (y % 2 != 0 && x % 2 != 0))
+        if((y % 2 == 1 && x % 2 == 0) || (y % 2 != 1 && x % 2 != 0))
         {
             tile.fillColor = brownTile;
         }
@@ -289,7 +288,7 @@ class GameGUI
                     {
                         if(tile !is null)
                         {
-                            int i;
+                            int i = -1;
                             if(pieces[x][y] !is null && isMyPiece(x, y)
                                 && tile.getGlobalBounds.contains(mouseLoc))
                             {
@@ -297,12 +296,17 @@ class GameGUI
                                 selectedLoc[0] = x;
                                 selectedLoc[1] = y;
                             }
-                            else if((i = findMoveFromSelectedPiece(x, y)) >= 0)
+                            else if(tile.getGlobalBounds.contains(mouseLoc)
+                                    && (i = findMoveFromSelectedPiece(x, y)) >= 0)
                             {
+                                writeln("Selected Tile: (", x, ",", y, ")");
                                 Move m = selectedMoves[i];
+                                writeln("Move found: ", m);
                                 updateGuiForMove(m);
                                 playMove(m);
                                 selectedMoves.length = 0;
+                                setTileColor(tile, x, y);
+                                
                                 botMoveTimer = new SimpleAnimation(botMoveDuration);
                             }
                             else
@@ -397,7 +401,8 @@ class GameGUI
     {
         if(selectedPiece[0] < 0 || selectedPiece[1] < 0)
             return;
-            
+        
+        writeln("Selected Piece: ", selectedPiece, ", ", getPiecePosition(selectedPiece[0], selectedPiece[1]));
         selectedMoves = getMovesForLoc(selectedPiece[0], selectedPiece[1]);
         foreach(move; selectedMoves)
         {
@@ -413,6 +418,7 @@ class GameGUI
         {
             if(move.dest_column == x && move.dest_row == y)
             {
+                writeln("Move found: ", i, ", ", move);
                 return i;
             }
         }

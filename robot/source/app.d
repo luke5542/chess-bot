@@ -76,6 +76,7 @@ void checkMessages(GameGUI gui)
                         gui.gameOver = true;
                     },
                     (Move move) {
+                        mainState = mainState.performMove(move);
                         gui.updateGuiForMove(move);
                     });
         }

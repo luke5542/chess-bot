@@ -106,7 +106,7 @@ struct GameState
         {
             for(int r = 0; r < 8; r++)
             {
-                if(r % 2 == 0) //is even
+                if(r % 2 == 1) //is even
                 {
                     board[c][r].tileColor = (c % 2 == 0 ? Color.BLACK : Color.WHITE);
                 }
@@ -156,16 +156,16 @@ struct GameState
         board[5][7].isEmpty = false;
         
         //Queens
-        board[3][0].piece = Piece(PieceType.QUEEN, Color.WHITE, false);
-        board[3][7].piece = Piece(PieceType.QUEEN, Color.BLACK, false);
-        board[3][0].isEmpty = false;
-        board[3][7].isEmpty = false;
-        
-        //Kings
-        board[4][0].piece = Piece(PieceType.KING, Color.WHITE, false);
-        board[4][7].piece = Piece(PieceType.KING, Color.BLACK, false);
+        board[4][0].piece = Piece(PieceType.QUEEN, Color.WHITE, false);
+        board[4][7].piece = Piece(PieceType.QUEEN, Color.BLACK, false);
         board[4][0].isEmpty = false;
         board[4][7].isEmpty = false;
+        
+        //Kings
+        board[3][0].piece = Piece(PieceType.KING, Color.WHITE, false);
+        board[3][7].piece = Piece(PieceType.KING, Color.BLACK, false);
+        board[3][0].isEmpty = false;
+        board[3][7].isEmpty = false;
         
     }
     
@@ -194,6 +194,7 @@ struct GameState
         newState.board[move.start_column][move.start_row].isEmpty = true;
         newState.board[move.dest_column][move.dest_row].isEmpty = false;
         newState.board[move.dest_column][move.dest_row].piece = newState.board[move.start_column][move.start_row].piece;
+        newState.board[move.dest_column][move.dest_row].piece.hasMoved = true;
         
         
         newState.side = side.opposite;
@@ -250,6 +251,7 @@ struct GameState
     {
         if(!board[x][y].isEmpty)
         {
+            writeln("Getting moves for: (", x, ",", y, "), ", board[x][y]);
             return getMoves(board[x][y], x, y);
         }
         
@@ -366,60 +368,73 @@ struct GameState
     Move[] getBishopMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
-        for(byte x = c; x < 8; x++)
+        int tempY, tempX;
+        for(byte i = 1; i <= 8-c; i++)
         {
-            for(byte y = r; y < 8; y++)
+            tempY = r + i;
+            tempX = c + i;
+            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
             {
-                if(checkIfTileEmpty(tile.piece.color, x, y))
-                {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, y, x);
-                }
-                else
+                moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
+                if(!board[tempX][tempY].isEmpty)
                 {
                     break;
                 }
             }
-        }
-        for(byte x = c; x >= 0; x--)
-        {
-            for(byte y = r; y >= 0; y--)
+            else
             {
-                if(checkIfTileEmpty(tile.piece.color, x, y))
-                {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, y, x);
-                }
-                else
+                break;
+            }
+        }
+        for(byte i = -1; i >= -c; i--)
+        {
+            tempY = r + i;
+            tempX = c + i;
+            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            {
+                moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
+                if(!board[tempX][tempY].isEmpty)
                 {
                     break;
                 }
             }
-        }
-        for(byte x = c; x < 8; x++)
-        {
-            for(byte y = r; y >= 0; y--)
+            else
             {
-                if(checkIfTileEmpty(tile.piece.color, x, y))
-                {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, y, x);
-                }
-                else
+                break;
+            }
+        }
+        for(byte i = 1; i <= 8-c; i++)
+        {
+            tempY = r - i;
+            tempX = c + i;
+            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            {
+                moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
+                if(!board[tempX][tempY].isEmpty)
                 {
                     break;
                 }
             }
-        }
-        for(byte x = c; x >= 0; x--)
-        {
-            for(byte y = r; y < 8; y++)
+            else
             {
-                if(checkIfTileEmpty(tile.piece.color, x, y))
-                {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, y, x);
-                }
-                else
+                break;
+            }
+        }
+        for(byte i = -1; i >= -c; i--)
+        {
+            tempY = r - i;
+            tempX = c + i;
+            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            {
+                moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
+                if(!board[tempX][tempY].isEmpty)
                 {
                     break;
                 }
+            }
+            else
+            {
+                break;
             }
         }
         
@@ -477,6 +492,10 @@ struct GameState
             if(checkIfTileEmpty(tile.piece.color, x, r))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, r, x);
+                if(!board[x][r].isEmpty)
+                {
+                    break;
+                }
             }
             else
             {
@@ -488,6 +507,10 @@ struct GameState
             if(checkIfTileEmpty(tile.piece.color, x, r))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, r, x);
+                if(!board[x][r].isEmpty)
+                {
+                    break;
+                }
             }
             else
             {
@@ -501,6 +524,10 @@ struct GameState
             if(checkIfTileEmpty(tile.piece.color, c, y))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, y, c);
+                if(!board[c][y].isEmpty)
+                {
+                    break;
+                }
             }
             else
             {
@@ -512,6 +539,10 @@ struct GameState
             if(checkIfTileEmpty(tile.piece.color, c, y))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, y, c);
+                if(!board[c][y].isEmpty)
+                {
+                    break;
+                }
             }
             else
             {
