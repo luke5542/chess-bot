@@ -44,7 +44,7 @@ DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
 DsfmlColor brownTile = DsfmlColor(153, 102, 51);
 DsfmlColor beigeTile = DsfmlColor(230, 204, 179);
 
-auto botMoveDuration = secs(10);
+auto botMoveDuration = seconds(10);
 
 void runGui()
 {
@@ -339,9 +339,9 @@ class GameGUI
                 break;
             case GuiState.PLAYING:
                 checkMessages(this);
-                if(botMoveTimer != null)
+                if(botMoveTimer !is null)
                 {
-                    botMoveTimer.updateProgress(time);
+                    botMoveTimer.update(time);
                     if(!botMoveTimer.isRunning())
                     {
                         botMoveTimer = null;
@@ -422,6 +422,7 @@ class GameGUI
     
     void updateGuiForMove(Move m)
     {
+        writeln("Gui updating with move: ", m);
         pieces[m.dest_column][m.dest_row] = pieces[m.start_column][m.start_row];
         pieces[m.start_column][m.start_row] = null;
         pieces[m.dest_column][m.dest_row].position = getPiecePosition(m.dest_column, m.dest_row);

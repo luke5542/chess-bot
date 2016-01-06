@@ -102,6 +102,7 @@ void runBot()
     {
         writeln(e);
     }
+    writeln("Bot terminating...");
 } // execute
 
 void expandTree()
@@ -161,7 +162,7 @@ void expandTree()
                             ? currentNode.myTurn : !currentNode.myTurn;
             //newChild.c = newChild.myTurn ? MY_SEARCH_RATE : OPP_SEARCH_RATE;
 
-            currentNode.m_children[index] = newChild;
+            currentNode.m_children ~= newChild;
 
             if(mostPromising is null || newChild.obtainUtility() >= mostPromising.obtainUtility())
             {
@@ -199,58 +200,13 @@ bool checkMessages()
                     return true;
                 },
                 (GetBestMove message) {
-                    debug writeln("Getting best move...");
-                    //Send message to parent with the best move found so far
-                    if(!root.myTurn)
-                    {
-                        debug writeln("It's not my turn, something went wrong ya doof...");
-                    }
-                    Move bestMove;
-                    real bestVal = 0;
-                    bool hasBestMove = false;
-                    foreach(node; root.m_children)
-                    {
-                        if(node !is null && (!hasBestMove || node.obtainUtility() > bestVal))
-                        {
-                            bestMove = node.m_moveToHere;
-                            bestVal = node.obtainUtility();
-                            hasBestMove = true;
-                        }
-                    }
-                    if(hasBestMove)
-                    {
-                        ownerTid.send(bestMove);
-                    }
-                    else
-                    {
-                        ownerTid.send(NoMoves());
-                    }
-                    canSearchTree = false;
+                    parseMessage(message);
                 },
                 (Move moveMade) {
-                    //update the tree with the new data
-                    debug writeln("Pruning tree with move...");
-
-                    //Find node with given move...
-                    foreach(node; root.m_children)
-                    {
-                        if(node !is null && node.m_moveToHere == moveMade)
-                        {
-                            root = node;
-                            root.parent = null;
-                            debug writeln("Node found for move");
-                            break;
-                        }
-                    }
-                    canSearchTree = true;
+                    parseMessage(moveMade);
                 },
                 (GameState newState, bool myTurn) {
-                    root = new MCTreeNode(newState, Move());
-
-                    // Set it up.
-                    root.m_currentState = newState;
-                    root.myTurn = myTurn;
-                    canSearchTree = myTurn;
+                    parseMessage(newState, myTurn);
                 },
                 (PrintTreeStats message) {
                     //Print out various statistics about this tree.
@@ -267,6 +223,69 @@ bool checkMessages()
     return false;
 }
 
+void parseMessage(GameState newState, bool myTurn)
+{
+    root = new MCTreeNode(newState, Move());
+
+    // Set it up.
+    root.m_currentState = newState;
+    root.myTurn = myTurn;
+    canSearchTree = myTurn;
+    expandTree();
+}
+
+void parseMessage(Move moveMade)
+{
+    //update the tree with the new data
+    debug writeln("Pruning tree with move...");
+
+    //Find node with given move...
+    foreach(node; root.m_children)
+    {
+        if(node !is null && node.m_moveToHere == moveMade)
+        {
+            root = node;
+            root.parent = null;
+            debug writeln("Node found for move");
+            
+            canSearchTree = true;
+            break;
+        }
+    }
+}
+
+void parseMessage(GetBestMove message)
+{
+    debug writeln("Getting best move...");
+    //Send message to parent with the best move found so far
+    if(!root.myTurn)
+    {
+        debug writeln("It's not my turn, something went wrong ya doof...");
+    }
+    Move bestMove;
+    real bestVal = 0;
+    bool hasBestMove = false;
+    foreach(node; root.m_children)
+    {
+        if(node !is null && (!hasBestMove || node.obtainUtility() > bestVal))
+        {
+            bestMove = node.m_moveToHere;
+            bestVal = node.obtainUtility();
+            hasBestMove = true;
+        }
+    }
+    if(hasBestMove)
+    {
+        ownerTid.send(bestMove);
+        parseMessage(bestMove);
+    }
+    else
+    {
+        ownerTid.send(NoMoves());
+    }
+    canSearchTree = false;
+}
+
 // Perform the simulation part of the Monte Carlo algortihm by executing
 // random moves from the current game state.
 bool simulateGame(GameState state, Color myColor)
@@ -274,7 +293,7 @@ bool simulateGame(GameState state, Color myColor)
     Move[] moves = state.getMyValidMoves();
     int randomIndex;
 
-    while(state.currentState == PlayState.PLAYING)
+    while(state.currentState == PlayState.PLAYING && moves.length > 0)
     {
         randomIndex = to!int(uniform(0, moves.length));
 

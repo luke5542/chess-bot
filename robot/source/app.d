@@ -54,14 +54,7 @@ bool isMyPiece(int x, int y)
 void playMove(Move m)
 {
     mainState = mainState.performMove(m);
-    if(isFirstMove)
-    {
-        botThread.send(mainState);
-    }
-    else
-    {
-        botThread.send(m);
-    }
+    botThread.send(m);
 }
 
 void requestBotMove()
