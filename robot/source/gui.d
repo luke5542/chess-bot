@@ -13,6 +13,7 @@ import dsfml.window;
 import animate.d;
 
 import gamestate;
+import button;
 import app;
 
 immutable WINDOW_HEIGHT = 800;
@@ -39,6 +40,7 @@ alias PieceColor = gamestate.Color;
 
 DsfmlColor highlightTextColor = DsfmlColor(107, 44, 145);
 DsfmlColor normalTextColor = DsfmlColor(0, 0, 0);
+DsfmlColor redTextColor = DsfmlColor(200, 0, 0);
 DsfmlColor selectedColor = DsfmlColor(51, 204, 0);
 DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
 DsfmlColor brownTile = DsfmlColor(153, 102, 51);
@@ -74,7 +76,8 @@ class GameGUI
         Move[] selectedMoves;
         SimpleAnimation botMoveTimer;
         
-        Text playButton;
+        Button playButton;
+        Text gameOverButton;
         Font font;
     }
     
@@ -110,10 +113,11 @@ class GameGUI
             writeln("Failed to load font file! Exiting...");
             exit(1);
         }
-        playButton = new Text("Play Against Bot", font, 80);
+        playButton = new Button("Play Against Bot", font, 80);
         playButton.position = Vector2f(WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - 200);
         playButton.origin = Vector2f(playButton.getLocalBounds().width/2,
                                         playButton.getLocalBounds().height/2);
+        playButton.setBackgroundColor(beigeTile);
     }
     
     void initializeGameBoard(const GameState startState, bool myTurn)
@@ -159,6 +163,12 @@ class GameGUI
                 }
             }
         }
+        
+        gameOverButton = new Text("Game Over", font, 80);
+        gameOverButton.position = Vector2f(WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - 300);
+        gameOverButton.origin = Vector2f(gameOverButton.getLocalBounds().width/2,
+                                        gameOverButton.getLocalBounds().height/2);
+        gameOverButton.setColor(redTextColor);
     }
     
     Vector2f getPiecePosition(int x, int y)
@@ -279,55 +289,74 @@ class GameGUI
             }
             else if(currentState == GuiState.PLAYING)
             {
-                Tuple!(int, int) selectedLoc;
-                selectedLoc[0] = -1;
-                selectedLoc[1] = -1;
-                foreach(int x, column; boardTiles)
+                if(!gameOver)
                 {
-                    foreach(int y, tile; column)
+                    Tuple!(int, int) selectedLoc;
+                    selectedLoc[0] = -1;
+                    selectedLoc[1] = -1;
+                    foreach(int x, column; boardTiles)
                     {
-                        if(tile !is null)
+                        foreach(int y, tile; column)
                         {
-                            int i = -1;
-                            if(pieces[x][y] !is null && isMyPiece(x, y)
-                                && tile.getGlobalBounds.contains(mouseLoc))
+                            if(tile !is null)
                             {
-                                tile.fillColor = selectedColor;
-                                selectedLoc[0] = x;
-                                selectedLoc[1] = y;
-                            }
-                            else if(tile.getGlobalBounds.contains(mouseLoc)
-                                    && (i = findMoveFromSelectedPiece(x, y)) >= 0)
-                            {
-                                writeln("Selected Tile: (", x, ",", y, ")");
-                                Move m = selectedMoves[i];
-                                writeln("Move found: ", m);
-                                updateGuiForMove(m);
-                                playMove(m);
-                                selectedMoves.length = 0;
-                                setTileColor(tile, x, y);
-                                
-                                botMoveTimer = new SimpleAnimation(botMoveDuration);
-                            }
-                            else
-                            {
-                                setTileColor(tile, x, y);
+                                int i = -1;
+                                if(pieces[x][y] !is null && isMyPiece(x, y)
+                                    && tile.getGlobalBounds.contains(mouseLoc))
+                                {
+                                    tile.fillColor = selectedColor;
+                                    selectedLoc[0] = x;
+                                    selectedLoc[1] = y;
+                                }
+                                else if(tile.getGlobalBounds.contains(mouseLoc)
+                                        && (i = findMoveFromSelectedPiece(x, y)) >= 0)
+                                {
+                                    writeln("Selected Tile: (", x, ",", y, ")");
+                                    Move m = selectedMoves[i];
+                                    writeln("Move found: ", m);
+                                    updateGuiForMove(m);
+                                    playMove(m);
+                                    selectedMoves.length = 0;
+                                    setTileColor(tile, x, y);
+                                    
+                                    botMoveTimer = new SimpleAnimation(botMoveDuration);
+                                }
+                                else
+                                {
+                                    setTileColor(tile, x, y);
+                                }
                             }
                         }
                     }
+                    highlightMoves(selectedLoc);
                 }
-                highlightMoves(selectedLoc);
+                else
+                {
+                    if(gameOverButton.getGlobalBounds().contains(mouseLoc))
+                    {
+                        //TODO make a new game??
+                        m_window.close();
+                    }
+                }
             }
         }
     }
 
     void update(ref RenderWindow window, Duration time)
     {
+        auto mouseLoc = Mouse.getPosition(window);
         if(m_gameOver)
         {
-            window.close();
+            if(gameOverButton.getGlobalBounds().contains(mouseLoc))
+            {
+                gameOverButton.setColor(highlightTextColor);
+            }
+            else
+            {
+                gameOverButton.setColor(redTextColor);
+            }
+            return;
         }
-        auto mouseLoc = Mouse.getPosition(window);
         final switch(currentState)
         {
             case GuiState.MENU:
@@ -385,6 +414,10 @@ class GameGUI
                             window.draw(piece);
                         }
                     }
+                }
+                if(m_gameOver)
+                {
+                    window.draw(gameOverButton);
                 }
                 break;
         }
