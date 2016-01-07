@@ -191,16 +191,17 @@ void expandTree()
 
 bool checkMessages()
 {
+    bool result = false;
     try
     {
         //debug writeln("Checking for messages...");
         receiveTimeout( 1.usecs,
                 (string message) {
                     debug writeln("Exiting");
-                    return true;
+                    result = true;
                 },
                 (GetBestMove message) {
-                    parseMessage(message);
+                    result = parseMessage(message);
                 },
                 (Move moveMade) {
                     parseMessage(moveMade);
@@ -220,7 +221,7 @@ bool checkMessages()
         return true;
     }
     
-    return false;
+    return result;
 }
 
 void parseMessage(GameState newState, bool myTurn)
@@ -254,13 +255,15 @@ void parseMessage(Move moveMade)
     }
 }
 
-void parseMessage(GetBestMove message)
+//Returns true if we should end the game right now...
+bool parseMessage(GetBestMove message)
 {
     debug writeln("Getting best move...");
     //Send message to parent with the best move found so far
     if(!root.myTurn)
     {
         debug writeln("It's not my turn, something went wrong ya doof...");
+        return false;
     }
     Move bestMove;
     real bestVal = 0;
@@ -282,8 +285,10 @@ void parseMessage(GetBestMove message)
     else
     {
         ownerTid.send(NoMoves());
+        return true;
     }
     canSearchTree = false;
+    return false;
 }
 
 // Perform the simulation part of the Monte Carlo algortihm by executing

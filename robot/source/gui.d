@@ -22,15 +22,15 @@ immutable PAWN_TEXTURE_WHITE = "./assets/white_pawn.png";
 immutable ROOK_TEXTURE_WHITE = "./assets/white_rook.png";
 immutable KNIGHT_TEXTURE_WHITE = "./assets/white_knight.png";
 immutable BISHOP_TEXTURE_WHITE = "./assets/white_bishop.png";
-immutable QUEEN_TEXTURE_WHITE = "./assets/white_king.png"; //King and queen intentionally swapped, because somewhere there's a bug...
-immutable KING_TEXTURE_WHITE = "./assets/white_queen.png";
+immutable QUEEN_TEXTURE_WHITE = "./assets/white_queen.png";
+immutable KING_TEXTURE_WHITE = "./assets/white_king.png";
 
 immutable PAWN_TEXTURE_BLACK = "./assets/black_pawn.png";
 immutable ROOK_TEXTURE_BLACK = "./assets/black_rook.png";
 immutable KNIGHT_TEXTURE_BLACK = "./assets/black_knight.png";
 immutable BISHOP_TEXTURE_BLACK = "./assets/black_bishop.png";
-immutable QUEEN_TEXTURE_BLACK = "./assets/black_king.png";
-immutable KING_TEXTURE_BLACK = "./assets/black_queen.png";
+immutable QUEEN_TEXTURE_BLACK = "./assets/black_queen.png";
+immutable KING_TEXTURE_BLACK = "./assets/black_king.png";
 
 immutable TEXT_FONT_LOC = "./assets/Roboto-Bold.ttf";
 
@@ -44,7 +44,7 @@ DsfmlColor validMoveColor = DsfmlColor(0, 58, 230);
 DsfmlColor brownTile = DsfmlColor(153, 102, 51);
 DsfmlColor beigeTile = DsfmlColor(230, 204, 179);
 
-auto botMoveDuration = seconds(1);
+auto botMoveDuration = seconds(2);
 
 void runGui()
 {
@@ -432,6 +432,13 @@ class GameGUI
         pieces[m.dest_column][m.dest_row] = pieces[m.start_column][m.start_row];
         pieces[m.start_column][m.start_row] = null;
         pieces[m.dest_column][m.dest_row].position = getPiecePosition(m.dest_column, m.dest_row);
+        
+        if(m.isCastle)
+        {
+            pieces[m.dest_column_rook][m.dest_row_rook] = pieces[m.start_column_rook][m.start_row_rook];
+            pieces[m.start_column_rook][m.start_row_rook] = null;
+            pieces[m.dest_column_rook][m.dest_row_rook].position = getPiecePosition(m.dest_column_rook, m.dest_row_rook);
+        }
     }
 
 }

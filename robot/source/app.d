@@ -71,13 +71,16 @@ void checkMessages(GameGUI gui)
         try
         {
             receiveTimeout( 1.usecs,
-                    (string message) {
-                        stderr.writeln("Exiting");
-                        gui.gameOver = true;
-                    },
                     (Move move) {
-                        mainState = mainState.performMove(move);
-                        gui.updateGuiForMove(move);
+                        if(move.side != guiSide)
+                        {
+                            mainState = mainState.performMove(move);
+                            gui.updateGuiForMove(move);
+                        }
+                    },
+                    (NoMoves rip) {
+                        writeln("Failed to detect lack of moves...");
+                        gui.gameOver = true;
                     });
         }
         catch(LinkTerminated ltEx)

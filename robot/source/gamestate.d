@@ -310,11 +310,11 @@ struct GameState
     Move[] getKingMoves(Tile tile, byte c, byte r)
     {
         Move[] moves;
-        for(byte x = cast(byte)(c - 1); x >= 0 && x < 8; x++)
+        for(byte x = cast(byte)(c - 1); x <= c + 1; x++)
         {
-            for(byte y = cast(byte)(r - 1); y >= 0 && y < 8; y++)
+            for(byte y = cast(byte)(r - 1); y <= r + 1; y++)
             {
-                if(checkIfTileEmpty(tile.piece.color, x, y))
+                if(checkIfTileEmptyOrCapture(tile.piece.color, x, y))
                 {
                     moves ~= Move(tile.piece.color, tile.piece, r, c, y, x);
                 }
@@ -329,17 +329,17 @@ struct GameState
                 if(board[0][0].piece.type == PieceType.ROOK
                     && !board[0][0].piece.hasMoved
                     && board[1][0].isEmpty
-                    && board[2][0].isEmpty
-                    && board[3][0].isEmpty)
+                    && board[2][0].isEmpty)
                 {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 2, 0, 0, 0, 3);
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 1, 0, 0, 0, 2);
                 }
                 if(board[7][0].piece.type == PieceType.ROOK
                     && !board[7][0].piece.hasMoved
                     && board[6][0].isEmpty
-                    && board[5][0].isEmpty)
+                    && board[5][0].isEmpty
+                    && board[4][0].isEmpty)
                 {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 6, 0, 7, 0, 5);
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 0, 5, 0, 7, 0, 4);
                 }
             }
             else
@@ -347,17 +347,17 @@ struct GameState
                 if(board[0][7].piece.type == PieceType.ROOK
                     && !board[0][7].piece.hasMoved
                     && board[1][7].isEmpty
-                    && board[2][7].isEmpty
-                    && board[3][7].isEmpty)
+                    && board[2][7].isEmpty)
                 {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 2, 7, 0, 7, 3);
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 1, 7, 0, 7, 2);
                 }
                 if(board[7][7].piece.type == PieceType.ROOK
                     && !board[7][7].piece.hasMoved
                     && board[6][7].isEmpty
-                    && board[5][7].isEmpty)
+                    && board[5][7].isEmpty
+                    && board[4][7].isEmpty)
                 {
-                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 6, 7, 7, 7, 5);
+                    moves ~= Move(tile.piece.color, tile.piece, r, c, 7, 5, 7, 7, 7, 4);
                 }
             }
         }
@@ -373,7 +373,7 @@ struct GameState
         {
             tempY = r + i;
             tempX = c + i;
-            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, tempX, tempY))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
                 if(!board[tempX][tempY].isEmpty)
@@ -390,7 +390,7 @@ struct GameState
         {
             tempY = r + i;
             tempX = c + i;
-            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, tempX, tempY))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
                 if(!board[tempX][tempY].isEmpty)
@@ -407,7 +407,7 @@ struct GameState
         {
             tempY = r - i;
             tempX = c + i;
-            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, tempX, tempY))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
                 if(!board[tempX][tempY].isEmpty)
@@ -424,7 +424,7 @@ struct GameState
         {
             tempY = r - i;
             tempX = c + i;
-            if(checkIfTileEmpty(tile.piece.color, tempX, tempY))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, tempX, tempY))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) tempY, cast(byte) tempX);
                 if(!board[tempX][tempY].isEmpty)
@@ -474,7 +474,7 @@ struct GameState
         
         foreach(pair; pairs)
         {
-            if(checkIfTileEmpty(tile.piece.color, cast(byte) pair[0], cast(byte) pair[1]))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, cast(byte) pair[0], cast(byte) pair[1]))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, cast(byte) pair[1], cast(byte) pair[0]);
             }
@@ -489,7 +489,7 @@ struct GameState
         //Horizontal moves
         for(byte x = cast(byte)(c - 1); x >= 0; x--)
         {
-            if(checkIfTileEmpty(tile.piece.color, x, r))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, x, r))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, r, x);
                 if(!board[x][r].isEmpty)
@@ -504,7 +504,7 @@ struct GameState
         }
         for(byte x = cast(byte)(c + 1); x < 8; x++)
         {
-            if(checkIfTileEmpty(tile.piece.color, x, r))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, x, r))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, r, x);
                 if(!board[x][r].isEmpty)
@@ -521,7 +521,7 @@ struct GameState
         //Vertical moves
         for(byte y = cast(byte)(r - 1); y >= 0; y--)
         {
-            if(checkIfTileEmpty(tile.piece.color, c, y))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, c, y))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, y, c);
                 if(!board[c][y].isEmpty)
@@ -536,7 +536,7 @@ struct GameState
         }
         for(byte y = cast(byte)(r + 1); y < 8; y++)
         {
-            if(checkIfTileEmpty(tile.piece.color, c, y))
+            if(checkIfTileEmptyOrCapture(tile.piece.color, c, y))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, y, c);
                 if(!board[c][y].isEmpty)
@@ -568,22 +568,47 @@ struct GameState
             row2 = cast(byte)(r - 2);
         }
         
-        if(checkIfTileEmpty(tile.piece.color, c, row1))
+        //Vertical movement...
+        if(checkIfTileEmpty(c, row1))
         {
             moves ~= Move(tile.piece.color, tile.piece, r, c, row1, c);
-            if(!tile.piece.hasMoved && checkIfTileEmpty(tile.piece.color, c, row2))
+            if(!tile.piece.hasMoved && checkIfTileEmpty(c, row2))
             {
                 moves ~= Move(tile.piece.color, tile.piece, r, c, row2, c);
             }
         }
         
+        //Diagonal captures...
+        if(checkIfTileCapture(tile.piece.color, c + 1, row1))
+        {
+            moves ~= Move(tile.piece.color, tile.piece, r, c, row1, cast(byte)(c + 1));
+        }
+        if(checkIfTileCapture(tile.piece.color, c - 1, row1))
+        {
+            moves ~= Move(tile.piece.color, tile.piece, r, c, row1, cast(byte)(c - 1));
+        }
+        
         return moves;
     }
     
-    bool checkIfTileEmpty(Color side, int c, int r)
+    bool checkIfTileEmptyOrCapture(Color side, int c, int r)
     {
         if(c < 8 && c >= 0 && r < 8 && r >= 0)
             return board[c][r].isEmpty || board[c][r].piece.color != side;
+        else
+            return false;
+    }
+    bool checkIfTileCapture(Color side, int c, int r)
+    {
+        if(c < 8 && c >= 0 && r < 8 && r >= 0)
+            return !board[c][r].isEmpty && board[c][r].piece.color != side;
+        else
+            return false;
+    }
+    bool checkIfTileEmpty(int c, int r)
+    {
+        if(c < 8 && c >= 0 && r < 8 && r >= 0)
+            return board[c][r].isEmpty;
         else
             return false;
     }
